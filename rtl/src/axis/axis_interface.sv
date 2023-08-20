@@ -33,7 +33,7 @@ interface axis_interface #(
 
     // Employ modports to establish AXI Stream inputs and outputs.
     
-    // A source AXI Stream data. I.e a FIFO output
+    // A source of AXI Stream data. I.e a FIFO output
     modport Source (
         input clk, reset,
         output tdata, tkeep, tvalid, tlast, tid, tdest, tuser,
