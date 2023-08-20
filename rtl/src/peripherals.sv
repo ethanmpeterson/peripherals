@@ -3,14 +3,17 @@
 
 module peripherals (
     input var logic clk_100,
-    output var logic blinky
+    output var logic blinky,
+
+    output var logic ftdi_uart_tx,
+    input var logic ftdi_uart_rx
 );
-    // global reset signal propagated down into all submodules
-    // assertion has the effect of resetting the entire design
+    // global reset signal propagated down into all submodules assertion has the
+    // effect of resetting the entire design
     var logic system_reset = 0;
 
-    // Dummy Instance of UART peripheral for compilation checks
-    // This UART peripheral connects us to the FTDI 232H on the ARTY A7 Dev board
+    // Dummy Instance of UART peripheral for compilation checks This UART
+    // peripheral connects us to the FTDI 232H on the ARTY A7 Dev board
 
     // default width is 8 bits which works perfectly for a UART peripheral
     axis_interface arty_tx (
@@ -24,7 +27,10 @@ module peripherals (
 
     uart arty_ftdi_bridge (
         .tx_stream(arty_tx.Sink),
-        .rx_stream(arty_rx.Source)
+        .rx_stream(arty_rx.Source),
+
+        .txd(ftdi_uart_tx),
+        .rxd(ftdi_uart_rx)
     ); 
 
     var logic[31:0] counter = 0;
