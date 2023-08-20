@@ -16,18 +16,19 @@ module peripherals (
     // peripheral connects us to the FTDI 232H on the ARTY A7 Dev board
 
     // default width is 8 bits which works perfectly for a UART peripheral
-    axis_interface arty_tx (
+    axis_interface arty_uart (
         .clk(clk_100),
         .reset(system_reset)
     );
-    axis_interface arty_rx (
+
+    axis_interface test (
         .clk(clk_100),
         .reset(system_reset)
     );
 
     uart arty_ftdi_bridge (
-        .tx_stream(arty_tx.Sink),
-        .rx_stream(arty_rx.Source),
+        .tx_stream(test.Sink),
+        .rx_stream(arty_uart.Source),
 
         .txd(ftdi_uart_tx),
         .rxd(ftdi_uart_rx)
@@ -35,7 +36,8 @@ module peripherals (
 
     var logic[31:0] counter = 0;
     always_ff @(posedge clk_100) begin : blink_logic
-        arty_rx.tready <= 1'b1;
+        test.tdata <= 69;
+        test.tvalid <= 1;
         if (counter == 50_000_000) begin
             blinky <= ~blinky;
             counter <= 0;
