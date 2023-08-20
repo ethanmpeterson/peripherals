@@ -28,12 +28,19 @@ module uart #(
     var logic rxd_sync;
 
     // NOTE: we assume that both AXIS interfaces are using the same clock here
-    sync_slow_signal rxd_synchonrizer (
-        .sync_clk(tx_stream.clk),
-        .signal(rxd),
+    // sync_slow_signal rxd_synchonrizer (
+    //     .sync_clk(tx_stream.clk),
+    //     .signal(rxd),
 
-        .synced_signal(rxd_sync)
-    );
+    //     .synced_signal(rxd_sync)
+    // );
+
+    // 2FF sync for rx signal
+    var logic rxd_metastable;
+    always @(posedge tx_stream.clk) begin
+        rxd_metastable <= rxd;
+        rxd_sync <= rxd_metastable;
+    end
 
     typedef enum int {
         UART_RX_IDLE,
@@ -54,7 +61,6 @@ module uart #(
                 // Initialize register values
                 rx_bit_index <= 0;
                 rx_clock_cycle_counter <= 0;
-                rx_stream.tdata <= 0;
 
                 // Look for falling edges to catch the start bit
                 if (rxd_sync == 1'b0) begin
@@ -73,6 +79,8 @@ module uart #(
                         // receiving the subsequent data bits
                         rx_clock_cycle_counter <= 0;
                         rx_state <= UART_RX_DATA_BIT;
+
+                        rx_stream.tvalid <= 0;
                     end else begin
                         // data is misaligned return to IDLE state to catch the next start bit
                         rx_state <= UART_RX_IDLE;
@@ -104,9 +112,6 @@ module uart #(
             end
 
             UART_RX_STOP_BIT: begin
-                // deassert tvalid so we do not double write
-                // NOTE: need to add an intermediate state to write to the FIFO. This is FRAGILE
-                rx_stream.tvalid <= 0;
                 if (rx_clock_cycle_counter < CLKS_PER_BIT - 1) begin
                     // wait in this state until the stop bit is received. We
                     // could have additional feedback here to ensure the bit
@@ -120,13 +125,13 @@ module uart #(
             end
 
             UART_RX_WRITE_FIFO: begin
-                    // at this point, we have the tdata register loaded.
-                    // assert tvalid to write this value to the queue
-                    rx_stream.tvalid <= 1;
-                    if (rx_stream.tvalid && rx_stream.tready) begin
-                        // if the queue is ready and has accepted the data proceed to idle state
-                        rx_state <= UART_RX_IDLE;
-                    end
+                // at this point, we have the tdata register loaded.
+                // assert tvalid to write this value to the queue
+                rx_stream.tvalid <= 1;
+                if (rx_stream.tvalid && rx_stream.tready) begin
+                    // if the queue is ready and has accepted the data proceed to idle state
+                    rx_state <= UART_RX_IDLE;
+                end
             end
         endcase
     end
@@ -151,11 +156,11 @@ module uart #(
                 tx_bit_index <= 0;
 
                 // for now just tx whatever is in a reg
-                tx_state <= UART_TX_START_BIT;
-                // if (tx_stream.tvalid) begin
-                //     // if we have valid data waiting on the queue, start txing
-                //     tx_state <= UART_TX_START_BIT;
-                // end
+                if (rx_stream.tvalid) begin
+                    tx_data <= rx_stream.tdata;
+                    // if we have valid data waiting on the queue, start txing
+                    tx_state <= UART_TX_START_BIT;
+                end
             end
 
             UART_TX_START_BIT: begin
@@ -180,7 +185,7 @@ module uart #(
                         tx_bit_index <= tx_bit_index + 1;
                     end else begin
                         tx_bit_index <= 0;                        
-                        tx_data <= tx_data + 1;
+                        // tx_data <= tx_data + 1;
 
                         tx_state <= UART_TX_STOP_BIT;
                     end
