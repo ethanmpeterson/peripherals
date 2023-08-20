@@ -28,19 +28,12 @@ module uart #(
     var logic rxd_sync;
 
     // NOTE: we assume that both AXIS interfaces are using the same clock here
-    // sync_slow_signal rxd_synchonrizer (
-    //     .sync_clk(tx_stream.clk),
-    //     .signal(rxd),
+    sync_slow_signal rxd_synchonrizer (
+        .sync_clk(tx_stream.clk),
+        .signal(rxd),
 
-    //     .synced_signal(rxd_sync)
-    // );
-
-    // 2FF sync for rx signal
-    var logic rxd_metastable;
-    always @(posedge tx_stream.clk) begin
-        rxd_metastable <= rxd;
-        rxd_sync <= rxd_metastable;
-    end
+        .synced_signal(rxd_sync)
+    );
 
     typedef enum int {
         UART_RX_IDLE,
