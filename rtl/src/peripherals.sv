@@ -35,6 +35,7 @@ module peripherals (
 
     var logic[31:0] counter = 0;
     always_ff @(posedge clk_100) begin : blink_logic
+        arty_rx.tready <= 1'b1;
         if (counter == 50_000_000) begin
             blinky <= ~blinky;
             counter <= 0;
