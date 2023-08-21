@@ -44,7 +44,12 @@ module uart #(
         .CLKS_PER_BIT(CLKS_PER_BIT)
     ) uart_receiver (
         .rxd(rxd),
-        .stream(rx)
+        .stream(direct_test.Source)
+    );
+
+    axis_interface direct_test (
+        .clk(tx_stream.clk),
+        .reset(tx_stream.reset)
     );
 
 
@@ -69,7 +74,7 @@ module uart #(
         .CLKS_PER_BIT(CLKS_PER_BIT)
     ) uart_transmitter (
         .txd(txd),
-        .stream(tx)
+        .stream(direct_test.Sink)
     );
 
     always_comb begin : handle_unused_axis_signals
