@@ -31,12 +31,12 @@ module uart_rx #(
     } uart_rx_state_t;
 
     uart_rx_state_t rx_state = UART_RX_IDLE;
-
     var logic [31:0] rx_clock_cycle_counter = 0;
     var logic [3:0] rx_bit_index = 0;
     always_ff @(posedge stream.clk) begin
         case (rx_state)
             UART_RX_IDLE: begin
+                stream.tvalid <= 0;
                 // Initialize register values
                 rx_bit_index <= 0;
                 rx_clock_cycle_counter <= 0;
