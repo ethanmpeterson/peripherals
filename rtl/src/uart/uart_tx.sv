@@ -40,6 +40,9 @@ module uart_tx #(
                     // register
                     stream.tready <= 1'b0;
 
+                    // latch the tx data
+                    tx_data <= stream.tdata;
+
                     // if we have valid data waiting on the queue, start txing
                     tx_state <= UART_TX_START_BIT;
                 end
@@ -59,7 +62,7 @@ module uart_tx #(
             end
 
             UART_TX_DATA_BIT: begin
-                txd <= stream.tdata[tx_bit_index];
+                txd <= tx_data[tx_bit_index];
 
                 if (tx_clock_cycle_counter < CLKS_PER_BIT - 1) begin
                     tx_clock_cycle_counter <= tx_clock_cycle_counter + 1;
