@@ -7,7 +7,8 @@
 
 module uart_rx #(
     // Equates to a 115200 bps rate on 100 MHz clock.
-    parameter CLKS_PER_BIT = 868
+    parameter CLKS_PER_BIT = 868,
+    parameter FIFO_DEPTH = 256
 ) (
     // asynchronous RX signal
     input var logic rxd,
