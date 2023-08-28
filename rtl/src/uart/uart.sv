@@ -40,7 +40,7 @@ module uart #(
         .CLKS_PER_BIT(CLKS_PER_BIT)
     ) uart_transmitter (
         .txd(txd),
-        .stream(internal.Sink)
+        .tx_stream(internal.Sink)
     );
 
 endmodule
