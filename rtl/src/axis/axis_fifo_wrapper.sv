@@ -71,6 +71,9 @@ module axis_fifo_wrapper #(
         .m_axis_tdest(source.tdest),
         .m_axis_tuser(source.tuser),
 
+        .puase_req(0),
+        .puase_ack(),
+
         .status_depth(status.depth),
         .status_depth_commit(status.depth_commit),
         .status_overflow(status.overflow),
