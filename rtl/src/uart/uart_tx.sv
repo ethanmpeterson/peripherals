@@ -7,12 +7,30 @@
 
 module uart_tx #(
     // Equates to a 115200 bps rate on 100 MHz clock.
-    parameter CLKS_PER_BIT = 868
+    parameter CLKS_PER_BIT = 868,
+    parameter FIFO_DEPTH = 256
 ) (
     output var logic txd,
 
-    axis_interface.Sink stream
+    axis_interface.Sink tx_stream
 );
+
+    // create stream an FIFO
+    axis_interface stream (
+        .clk(tx_stream.clk),
+        .reset(tx_stream.reset)
+    );
+
+    axis_fifo_status_interface tx_fifo_status ();
+    axis_fifo_wrapper #(
+        .DEPTH(FIFO_DEPTH)
+    ) tx_fifo (
+        .sink(tx_stream),
+        .source(stream.Source),
+
+        .status(tx_fifo_status)
+    );
+
     typedef enum int {
         UART_TX_IDLE,
         UART_TX_START_BIT,
