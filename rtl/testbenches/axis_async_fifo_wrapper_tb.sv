@@ -3,34 +3,41 @@
 
 `include "vunit_defines.svh"
 
-module axis_fifo_wrapper_tb;
+module axis_async_fifo_wrapper_tb;
 
-
-    var logic clk = 0;
+    var logic s_clk = 0;
+    var logic m_clk = 0;
     var logic reset = 0;
     always begin
         #10
-        clk <= !clk;
+        s_clk <= !s_clk;
+    end
+
+    always begin
+        #15
+        m_clk <= !m_clk;
     end
 
     axis_interface test_stream (
-        .clk(clk),
+        .clk(s_clk),
         .reset(reset)
     );
 
     axis_interface return_stream (
-        .clk(clk),
+        .clk(m_clk),
         .reset(reset)
     );
 
-    axis_fifo_status_interface dut_status ();
-
     // Set up the FIFO wrapper    
-    axis_fifo_wrapper DUT (
-        .sink(test_stream.Sink),
-        .source(return_stream.Source),
+    axis_fifo_status_interface dut_sink_status ();
+    axis_fifo_status_interface dut_source_status ();
 
-        .status(dut_status)
+    axis_async_fifo_wrapper DUT (
+        .sink(test_stream.Sink),
+        .sink_status(dut_sink_status),
+
+        .source(return_stream.Source),
+        .source_status(dut_source_status)
     );
 
     typedef enum int {
@@ -41,7 +48,7 @@ module axis_fifo_wrapper_tb;
 
     // set up a state machine to load data into the FIFO
     // then verify output with a test case
-    always @(posedge clk) begin
+    always @(posedge s_clk) begin
         case (state)
             WAIT: begin
                 if (test_stream.tready) begin
@@ -63,7 +70,8 @@ module axis_fifo_wrapper_tb;
 
     `TEST_SUITE begin
         `TEST_SUITE_SETUP begin
-            clk = 0;
+            s_clk = 0;
+            m_clk = 0;
 
             // Provide fixed values for unused FIFO signals
             test_stream.tdata = 0;
@@ -81,7 +89,7 @@ module axis_fifo_wrapper_tb;
         `TEST_CASE("check_fifo_output") begin
             automatic int bytes_consumed = 0;
             while (bytes_consumed < 10) begin
-                @(posedge clk) begin
+                @(posedge m_clk) begin
                     if (return_stream.tvalid && return_stream.tready) begin
                         `CHECK_EQUAL(return_stream.tdata, bytes_consumed);
                         bytes_consumed = bytes_consumed + 1;
