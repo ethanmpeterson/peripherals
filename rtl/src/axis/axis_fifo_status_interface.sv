@@ -10,14 +10,7 @@
 
 interface axis_fifo_status_interface #(
     parameter DEPTH = 256
-) (
-    // var logic [$clog2(DEPTH):0] depth,
-    // var logic [$clog2(DEPTH):0] depth_commit,
-    // var logic                   overflow,
-    // var logic                   bad_frame,
-    // var logic                   good_frame
-);
-
+) ();
     var logic [$clog2(DEPTH):0] depth;
     var logic [$clog2(DEPTH):0] depth_commit;
     var logic                   overflow;
