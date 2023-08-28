@@ -48,6 +48,7 @@ module uart_rx_tb;
             end
 
             SEND_STOP_BIT: begin
+                test_value <= test_value + 1;
                 rxd <= 1'b1;
                 // wait a cycle and send the start bit again
                 state <= SEND_START_BIT;
@@ -64,7 +65,7 @@ module uart_rx_tb;
         .CLKS_PER_BIT(2)
     ) DUT (
         .rxd(rxd),
-        .stream(rx_stream)
+        .rx_stream(rx_stream)
     );
 
     var logic [7:0] iter = 0;
@@ -79,10 +80,10 @@ module uart_rx_tb;
 
         `TEST_CASE("check_data_integrity") begin
             automatic int bytes_consumed = 0;
-            while (bytes_consumed < 1) begin
+            while (bytes_consumed < 3) begin
                 @(posedge sys_clk) begin
-                    if (rx_stream.tvalid) begin
-                        `CHECK_EQUAL(rx_stream.tdata, test_value);
+                    if (rx_stream.tvalid && rx_stream.tready) begin
+                        `CHECK_EQUAL(rx_stream.tdata, 10 + bytes_consumed);
                         bytes_consumed = bytes_consumed + 1;
                     end
                 end

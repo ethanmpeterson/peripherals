@@ -11,8 +11,23 @@ module uart_rx #(
 ) (
     // asynchronous RX signal
     input var logic rxd,
-    axis_interface.Source stream
+    axis_interface.Source rx_stream
 );
+
+    // Create stream and receive FIFO
+    axis_interface stream (
+        .clk(rx_stream.clk),
+        .reset(rx_stream.reset)
+    );
+
+    axis_fifo_status_interface rx_fifo_status ();
+    axis_fifo_wrapper rx_fifo (
+        .sink(stream.Sink),
+        .source(rx_stream),
+        
+        .status(rx_fifo_status)
+    );
+
     // create clock synchronized version of async rx signal.
     var logic rxd_sync;
     sync_slow_signal rxd_synchonrizer (
@@ -117,6 +132,16 @@ module uart_rx #(
                 end
             end
         endcase
+    end
+
+    always_comb begin
+        // add defaults for other AXI Stream signals
+        stream.tkeep = 1'b1;
+        stream.tlast = 1'b1;
+
+        stream.tid = 0;
+        stream.tdest = 0;
+        stream.tuser = 0;
     end
 endmodule
 

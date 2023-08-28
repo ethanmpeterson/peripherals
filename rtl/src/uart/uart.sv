@@ -22,68 +22,26 @@ module uart #(
     axis_interface.Source rx_stream
 );
 
-
-    // Receiver Hookup
-    axis_interface rx (
-        .clk(rx_stream.clk),
-        .reset(rx_stream.reset)
-    );
-
-    axis_fifo_status_interface rx_fifo_status ();
-    axis_fifo_wrapper #(
-        .DEPTH(RX_FIFO_DEPTH)
-    ) rx_fifo (
-        .sink(rx),
-        .source(rx_stream),
-
-        // status signals not used
-        .status(rx_fifo_status)
+    axis_interface internal (
+        .clk(tx_stream.clk),
+        .reset(tx_stream.reset)
     );
 
     uart_rx #(
         .CLKS_PER_BIT(CLKS_PER_BIT)
     ) uart_receiver (
         .rxd(rxd),
-        .stream(direct_test.Source)
-    );
-
-    axis_interface direct_test (
-        .clk(tx_stream.clk),
-        .reset(tx_stream.reset)
+        .rx_stream(internal.Source)
     );
 
 
     // Transmitter Hookup
-    axis_interface tx (
-        .clk(tx_stream.clk),
-        .reset(tx_stream.reset)
-    );
-
-    axis_fifo_status_interface tx_fifo_status ();
-    axis_fifo_wrapper #(
-        .DEPTH(TX_FIFO_DEPTH)
-    ) tx_fifo (
-        .sink(tx_stream),
-        .source(tx),
-
-        // status signals unused
-        .status(tx_fifo_status)
-    );
-
     uart_tx #(
         .CLKS_PER_BIT(CLKS_PER_BIT)
     ) uart_transmitter (
         .txd(txd),
-        .stream(direct_test.Sink)
+        .stream(internal.Sink)
     );
-
-    always_comb begin : handle_unused_axis_signals
-        // Drive all unused axi stream signals to default values here
-        // rx.tlast = 1'b1;
-        // rx.tuser = 1'b0;
-
-        // tx.tuser = 1'b0;
-    end
 
 endmodule
 
