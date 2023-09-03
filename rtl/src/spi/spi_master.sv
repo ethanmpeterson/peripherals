@@ -177,16 +177,46 @@ module spi_master #(
 
     typedef enum int {
         SPI_MASTER_RECEIVER_IDLE,
-        SPI_MASTER_RECEIVER_START_RECEIVE,
         SPI_MASTER_RECEIVER_RECEIVING,
         SPI_MASTER_RECEIVER_END_RECEIVE
     } spi_master_receiver_state_t;
 
-    spi_master_receiver_state_t receiver_state = SPI_MASTER_MISO_IDLE;
+    spi_master_receiver_state_t receiver_state = SPI_MASTER_RECEIVER_IDLE;
 
+    var logic[$clog2(TRANSFER_WIDTH)-1:0] receive_bit_idx;
     always @(posedge spi_clk) begin
         case (receiver_state)
             SPI_MASTER_RECEIVER_IDLE: begin
+                receive_bit_idx <= TRANSFER_WIDTH - 1;
+                if (!cs) begin
+                    // cs is always asserted on the faling edge
+                    receiver_state <= SPI_MASTER_RECEIVER_RECEIVING;
+                end
+            end
+
+            SPI_MASTER_RECEIVER_RECEIVING: begin
+                if (spi_clk == !CPHA) begin
+                    // if we are on a sampling edge, populate the rx register accordingly
+                    if (receive_bit_idx > 0) begin
+                        miso_frame_stream.tdata[receive_bit_idx] <= miso;
+                        receive_bit_idx <= receive_bit_idx - 1;
+                    end else begin // receive_bit_idx == 0
+                        miso_frame_stream.tdata[0] <= miso;
+                        miso_frame_stream.tvalid <= 1'b1;
+
+                        receiver_state <= SPI_MASTER_RECEIVER_END_RECEIVE;
+                    end
+                end
+            end
+
+            SPI_MASTER_RECEIVER_END_RECEIVE: begin
+                if (spi_clk) begin
+                    if (miso_frame_stream.tready && miso_frame_stream.tvalid) begin
+                        miso_frame_stream.tvalid <= 1'b0;
+
+                        receiver_state <= SPI_MASTER_RECEIVER_IDLE;
+                    end
+                end
             end
         endcase
     end

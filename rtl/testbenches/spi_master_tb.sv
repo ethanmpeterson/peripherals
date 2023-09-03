@@ -30,10 +30,13 @@ module spi_master_tb;
     end
 
     // hookup SPI signals for timing diagram inspection    
-    var logic miso = 0;
+    var logic miso;
+
     var logic cs = 1;
     var logic sck = 0;
     var logic mosi = 0;
+
+    assign miso = mosi; // loop back test
 
     axis_interface #(
         .DATA_WIDTH(TRANSFER_WIDTH),
@@ -101,6 +104,8 @@ module spi_master_tb;
         endcase
     end
 
+    var logic [TRANSFER_WIDTH-1:0] rx_data = 69;
+
     `TEST_SUITE begin
         `TEST_SUITE_SETUP begin
             mosi_stream.tdata = 0;
@@ -110,13 +115,22 @@ module spi_master_tb;
             mosi_stream.tdest = 0;
             mosi_stream.tuser = 0;
             mosi_stream.tvalid = 0;
+
+            // ready up to conusme MISO data
+            miso_stream.tready = 1'b1;
         end
 
         `TEST_CASE("view_spi_timing_diagram") begin
             automatic int bytes_consumed = 0;
-            while (bytes_consumed < 25) begin
+            while (bytes_consumed < 40) begin
                 @(posedge spi_clk) begin
                     bytes_consumed = bytes_consumed + 1;
+
+                    // if (miso_stream.tready && miso_stream.tvalid) begin
+                    //     rx_data <= miso_stream.tdata;
+
+                    //     miso_stream.tready <= 1'b0;
+                    // end
                 end
             end
         end
