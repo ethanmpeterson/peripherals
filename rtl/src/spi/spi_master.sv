@@ -152,8 +152,6 @@ module spi_master #(
             end
 
             SPI_MASTER_TRANSMITTER_END_TRANSFER: begin
-                cs <= 1'b1;
-
                 transmitter_state <= SPI_MASTER_TRANSMITTER_IDLE;
             end
         endcase
@@ -166,7 +164,8 @@ module spi_master #(
 
     always_comb begin
         if (transmitter_state == SPI_MASTER_TRANSMITTER_START_TRANSFER ||
-            transmitter_state == SPI_MASTER_TRANSMITTER_TRANSFERRING) begin
+            transmitter_state == SPI_MASTER_TRANSMITTER_TRANSFERRING ||
+            transmitter_state == SPI_MASTER_TRANSMITTER_END_TRANSFER) begin
             // map sck to the spi clk directly in these states
             sck = spi_clk;
         end else begin
@@ -177,18 +176,19 @@ module spi_master #(
 
 
     typedef enum int {
-        SPI_MASTER_MISO_IDLE,
-        SPI_MASTER_MISO_START_RECEIVE,
-        SPI_MASTER_MISO_RECEIVING,
-        SPI_MASTER_MISO_END_RECEIVE
+        SPI_MASTER_RECEIVER_IDLE,
+        SPI_MASTER_RECEIVER_START_RECEIVE,
+        SPI_MASTER_RECEIVER_RECEIVING,
+        SPI_MASTER_RECEIVER_END_RECEIVE
     } spi_master_receiver_state_t;
 
     spi_master_receiver_state_t receiver_state = SPI_MASTER_MISO_IDLE;
 
     always @(posedge spi_clk) begin
-        // case (receiver_state)
-        //     // handle data received from the slave
-        // endcase
+        case (receiver_state)
+            SPI_MASTER_RECEIVER_IDLE: begin
+            end
+        endcase
     end
 
     always_comb begin
