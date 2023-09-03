@@ -47,13 +47,18 @@ module spi_master #(
         .reset(internal_reset)
     );
 
+    axis_fifo_status_interface mosi_fifo_sink_status ();
+    axis_fifo_status_interface mosi_fifo_source_status ();
     axis_async_fifo_wrapper #(
         .DEPTH(FIFO_DEPTH),
         .KEEP_WIDTH(KEEP_WIDTH),
         .DATA_WIDTH(TRANSFER_WIDTH)
     ) mosi_fifo (
         .sink(mosi_stream),
-        .source(mosi_frame_stream)
+        .source(mosi_frame_stream),
+
+        .sink_status(mosi_fifo_sink_status),
+        .source_status(mosi_fifo_source_status)
     );
 
 
@@ -65,13 +70,18 @@ module spi_master #(
         .reset(internal_reset)
     );
 
+    axis_fifo_status_interface miso_fifo_sink_status ();
+    axis_fifo_status_interface miso_fifo_source_status ();
     axis_async_fifo_wrapper #(
         .DEPTH(FIFO_DEPTH),
         .KEEP_WIDTH(KEEP_WIDTH),
         .DATA_WIDTH(TRANSFER_WIDTH)
     ) miso_fifo (
         .sink(miso_frame_stream),
-        .source(miso_stream)
+        .source(miso_stream),
+
+        .sink_status(miso_fifo_sink_status),
+        .source_status(miso_fifo_source_status)
     );
 
     typedef enum int {
@@ -81,7 +91,7 @@ module spi_master #(
         SPI_MASTER_TRANSMITTER_END_TRANSFER
     } spi_master_transmitter_state_t;
 
-    spi_master_transmitter_state_t transmitter_state = SPI_MASTER_MOSI_IDLE;
+    spi_master_transmitter_state_t transmitter_state = SPI_MASTER_TRANSMITTER_IDLE;
     var logic[$clog2(TRANSFER_WIDTH)-1:0] transfer_bit_idx;
     var logic[TRANSFER_WIDTH-1:0] tx_data;
 
@@ -104,7 +114,7 @@ module spi_master #(
                         
                         // place the first bit on the MOSI line
                         mosi <= mosi_frame_stream.tdata[transfer_bit_idx];
-                        transfer_bit_idx <= transfer_bit_idx
+                        transfer_bit_idx <= transfer_bit_idx;
                         transmitter_state <= SPI_MASTER_TRANSMITTER_START_TRANSFER;
                     end
                 end
@@ -176,9 +186,9 @@ module spi_master #(
     spi_master_receiver_state_t receiver_state = SPI_MASTER_MISO_IDLE;
 
     always @(posedge spi_clk) begin
-        case (receiver_state)
-            // handle data received from the slave
-        endcase
+        // case (receiver_state)
+        //     // handle data received from the slave
+        // endcase
     end
 
     always_comb begin
