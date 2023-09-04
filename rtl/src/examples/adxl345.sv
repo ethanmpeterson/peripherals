@@ -3,12 +3,42 @@
 
 module adxl345 (
     input var logic sys_clk, // main clock domain
+    input var logic reset,
+
     input var logic spi_ref_clk, // low speed SPI clock
 
     spi_interface.Master spi_bus,
 
     axis_interface accelerometer_data
 );
+    localparam TRANSFER_WIDTH = 16;
+    axis_interface #(
+        .DATA_WIDTH(TRANSFER_WIDTH)
+    ) command_stream (
+        .clk(sys_clk),
+        .reset(reset)
+    );
+
+    axis_interface #(
+        .DATA_WIDTH(TRANSFER_WIDTH)
+    ) response_stream (
+        .clk(sys_clk),
+        .reset(reset)
+    );
+
+    spi_master #(
+        .TRANSFER_WIDTH(16),
+        .FIFO_DEPTH(32),
+        .CPOL(1),
+        .CPHA(1)
+    ) adxl345_spi_master (
+        .spi_clk(spi_ref_clk),
+        .spi_bus(spi_bus),
+
+        .mosi_stream(command_stream),
+        .miso_stream(response_stream)
+    );
+
     // TODO
 
     // This device is SPI mode 3
@@ -31,16 +61,29 @@ module adxl345 (
 
     // Define register addresses using local parameters
     localparam
-        REG_POWER_CTL = 8'h2D,
-        REG_DATA_FORMAT = 8'h31,
-        REG_INT_ENABLE = 8'h2E,
-        REG_FIFO_CTL = 8'38,
-        REG_DATAX0 = 8'h32,
-        REG_DATAX1 = 8'h33,
-        REG_DATAY0 = 8'h34,
-        REG_DATAY1 = 8'h35,
-        REG_DATAZ0 = 8'h36,
-        REG_DATAZ0 = 8'h37;
+        REG_DEVID = 6'h00,
+        REG_POWER_CTL = 6'h2D,
+        REG_DATA_FORMAT = 6'h31,
+        REG_INT_ENABLE = 6'h2E,
+        REG_FIFO_CTL = 6'38,
+        REG_DATAX0 = 6'h32,
+        REG_DATAX1 = 6'h33,
+        REG_DATAY0 = 6'h34,
+        REG_DATAY1 = 6'h35,
+        REG_DATAZ0 = 6'h36,
+        REG_DATAZ0 = 6'h37;
+
+    // Define the command set
+    localparam
+        REG_WRITE = 1'b0,
+        REG_READ = 1'b1;
+
+    // See datasheet here for more info on data contents being written to
+    // register
+    localparam
+        ADXL345_CONFIGURE_POWER_CTL = {REG_WRITE, 0, REG_POWER_CTL, 8'b00001000},
+        ADXL345_DEVID_READ_COMMAND = {REG_READ, 0, REG_DEVID, 8{1'b0}};
+
 
     // A note about data format: set data to right justified so that we have
     // sign extension on the data. Should make it easier to do two's comp stuff.
@@ -52,19 +95,17 @@ module adxl345 (
     typedef enum int {
         ADXL345_IDLE, // assign defaults, set up signals
         ADXL345_SET_POWER_CTL, // put the part into measurement mode (chip powers up in standby)
+        ADXL345_READ_DEVID, // Read and check the device ID after powering up
+        ADXL345_VERIFY_DEVID,
         ADXL345_SET_4WIRE_SPI, // go from 3 wire to 4 wire SPI
-        ADXL345_DISABLE_INTERRUPTS, // could enable in the future but we will stick to simple streaming interface
+        ADXL345_ENABLE_INTERRUPTS, // This will be configured so we ask for data only when new data is available
         ADXL345_CONFIGURE_FIFO_MODE, // Can put in bypass and read data continuously into the FIFO we have on the FPGA
         
         // Grab 3 axis accelerometer data
         ADXL345_READ_DATAX0,
         ADXL345_READ_DATAX1,
         ADXL345_READ_DATAY0,
-        ADXL345_READ_DATAY1,
-
-        // Collect the device ID as a basic register read test that the device
-        // is alive
-        ADXL345_READ_DEVID
+        ADXL345_READ_DATAY1
     } adxl345_state_t;
 
     adxl345_state_t state = ADXL345_IDLE;
@@ -72,6 +113,15 @@ module adxl345 (
     always_ff @(posedge sys_clk) begin
         case(state)
             ADXL345_IDLE: begin
+                // Not sure what we will have hold us in this state but for now
+                // we can go right into the setup sequence for the module
+                
+                // Start with powering up the module
+                state <= ADXL345_SET_POWER_CTL;
+            end
+
+            ADXL345_SET_POWER_CTL: begin
+
             end
         endcase
     end
