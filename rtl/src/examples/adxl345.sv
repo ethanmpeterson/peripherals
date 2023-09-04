@@ -2,6 +2,8 @@
 `default_nettype none
 
 module adxl345 (
+    output var logic configured, // signal to indicate we configured the device successfully
+
     input var logic sys_clk, // main clock domain
     input var logic reset,
 
@@ -13,14 +15,16 @@ module adxl345 (
 );
     localparam TRANSFER_WIDTH = 16;
     axis_interface #(
-        .DATA_WIDTH(TRANSFER_WIDTH)
+        .DATA_WIDTH(TRANSFER_WIDTH),
+        .KEEP_WIDTH(1)
     ) command_stream (
         .clk(sys_clk),
         .reset(reset)
     );
 
     axis_interface #(
-        .DATA_WIDTH(TRANSFER_WIDTH)
+        .DATA_WIDTH(TRANSFER_WIDTH),
+        .KEEP_WIDTH(1)
     ) response_stream (
         .clk(sys_clk),
         .reset(reset)
@@ -81,22 +85,18 @@ module adxl345 (
     // See datasheet here for more info on data contents being written to
     // register
     localparam
-        ADXL345_CONFIGURE_POWER_CTL = {REG_WRITE, 0, REG_POWER_CTL, 8'b00001000},
-        ADXL345_DEVID_READ_COMMAND = {REG_READ, 0, REG_DEVID, 8{1'b0}};
-
-
-    // A note about data format: set data to right justified so that we have
-    // sign extension on the data. Should make it easier to do two's comp stuff.
-    // Should make it easier to do two's comp stuff.
-
-    // full res bit set to 0
-    // +- 2 g range setting
+        ADXL345_COMMAND_CONFIGURE_POWER_CTL = {REG_WRITE, 0, REG_POWER_CTL, 8'b00001000},
+        ADXL345_COMMAND_DEVID_READ = {REG_READ, 0, REG_DEVID, 8{1'b0}},
+        ADXL345_COMMAND_CONFIGURE_DATA_FORMAT = {REG_WRITE, 0, REG_DATA_FORMAT, 8'b0000_00_00},
+        ADXL345_COMMAND_CONFIGURE_INT_ENABLE = {REG_WRITE, 0, REG_INT_ENABLE, 8{1'b0}},
+        ADXL345_COMMAND_CONFIGURE_FIFO_CTL = {REG_WRITE, 0, REG_FIFO_CTL, 8'b0000_0000};
+        // TODO: configure offsets before reading actual data
 
     typedef enum int {
         ADXL345_IDLE, // assign defaults, set up signals
         ADXL345_SET_POWER_CTL, // put the part into measurement mode (chip powers up in standby)
         ADXL345_READ_DEVID, // Read and check the device ID after powering up
-        ADXL345_VERIFY_DEVID,
+        ADXL345_VERIFY_DEVID, // exit and write an error signal if we cannot match device ID
         ADXL345_SET_4WIRE_SPI, // go from 3 wire to 4 wire SPI
         ADXL345_ENABLE_INTERRUPTS, // This will be configured so we ask for data only when new data is available
         ADXL345_CONFIGURE_FIFO_MODE, // Can put in bypass and read data continuously into the FIFO we have on the FPGA
@@ -113,6 +113,17 @@ module adxl345 (
     always_ff @(posedge sys_clk) begin
         case(state)
             ADXL345_IDLE: begin
+                // Init some stream signals
+                mosi_stream.tvalid <= 1'b0;
+                mosi_stream.tkeep <= 1'b1;
+                mosi_stream.tlast <= 1'b1;
+                mosi_stream.tuser <= 0;
+                mosi_stream.tid <= 0;
+                mosi_stream.tdest <= 0;
+
+                miso_stream.tready <= 1'b1;
+                
+                configured <= 1'b0;
                 // Not sure what we will have hold us in this state but for now
                 // we can go right into the setup sequence for the module
                 
@@ -121,7 +132,65 @@ module adxl345 (
             end
 
             ADXL345_SET_POWER_CTL: begin
+                mosi_stream.tdata <= ADXL345_COMMAND_CONFIGURE_POWER_CTL;
+                mosi_stream.tvalid <= 1'b1;
 
+                if (mosi_stream.tvalid && mosi_stream.tready) begin
+                    // when the command is loaded into the FIFO, proceed to the
+                    // next state
+                    mosi_stream.tvalid <= 1'b0;
+
+                    state <= ADXL345_READ_DEVID;
+                end
+            end
+            
+            ADXL345_READ_DEVID: begin
+                // empty out the queue from prior writes. Note that we should
+                // add the ability to inhibit write with tuser flags on the MOSI
+                // stream.
+                if (!miso_stream.tvalid) begin
+                    miso_stream.tready <= 1'b0;
+                    
+                    // load up the devid read command
+                    mosi_stream.tdata <= ADXL345_COMMAND_DEVID_READ;
+                    mosi_stream.tvalid <= 1'b1;
+                end
+
+                if (mosi_stream.tvalid && mosi_stream.tready) begin
+                    // We wrote the command out to the queue
+
+                    // Now end the write operation
+                    mosi_stream.tvalid <= 1'b1;
+
+                    // say we are ready for the received data
+                    miso_stream.tready <= 1'b1;
+
+                    // advance to the verification state
+                    state <= ADXL345_VERIFY_DEVID;
+                end
+            end
+
+            ADXL345_VERIFY_DEVID: begin
+                if (miso_stream.tvalid && miso_stream.tready) begin
+                    miso_stream.tready <= 1'b0;
+
+                    if ((miso_stream.tdata & 16'h00_FF) == 8'b11100101) begin
+                        // We validated that the device ID is good
+                        state <= ADXL345_ENABLE_INTERRUPTS;
+                    end else begin
+                        state <= ADXL345_CONFIGURATION_FAILED;
+                    end
+                end
+            end
+
+            ADXL345_ENABLE_INTERRUPTS: begin
+                // TODO: For now just chill here
+                configured <= 1'b0;
+            end
+
+            ADXL345_CONFIGURATION_FAILED: begin
+                // can set the LED for debugging
+                configured <= 1'b1;
             end
         endcase
     end
