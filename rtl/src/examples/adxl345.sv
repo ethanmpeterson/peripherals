@@ -5,7 +5,9 @@ module adxl345 (
     input var logic sys_clk, // main clock domain
     input var logic spi_ref_clk, // low speed SPI clock
 
-    spi_interface.Master spi_bus
+    spi_interface.Master spi_bus,
+
+    axis_interface accelerometer_data
 );
     // TODO
 
@@ -28,11 +30,28 @@ module adxl345 (
     // support the self test built into the device
 
     // Define register addresses using local parameters
+    localparam
+        REG_POWER_CTL = 8'h2D,
+        REG_DATA_FORMAT = 8'h31,
+        REG_INT_ENABLE = 8'h2E,
+        REG_FIFO_CTL = 8'38,
+        REG_DATAX0 = 8'h32,
+        REG_DATAX1 = 8'h33,
+        REG_DATAY0 = 8'h34,
+        REG_DATAY1 = 8'h35,
+        REG_DATAZ0 = 8'h36,
+        REG_DATAZ0 = 8'h37;
 
+    // A note about data format: set data to right justified so that we have
+    // sign extension on the data. Should make it easier to do two's comp stuff.
+    // Should make it easier to do two's comp stuff.
+
+    // full res bit set to 0
+    // +- 2 g range setting
 
     typedef enum int {
         ADXL345_IDLE, // assign defaults, set up signals
-        ADXL345_SET_PWR_CTL, // put the part into measurement mode (chip powers up in standby)
+        ADXL345_SET_POWER_CTL, // put the part into measurement mode (chip powers up in standby)
         ADXL345_SET_4WIRE_SPI, // go from 3 wire to 4 wire SPI
         ADXL345_DISABLE_INTERRUPTS, // could enable in the future but we will stick to simple streaming interface
         ADXL345_CONFIGURE_FIFO_MODE, // Can put in bypass and read data continuously into the FIFO we have on the FPGA
