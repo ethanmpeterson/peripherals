@@ -28,6 +28,24 @@ lib.add_source_files(sources)
 # Create testbench
 tb = lib.test_bench("spi_master_tb")
 
+# add all posible idle and clock polarity variants
+SPI_MODES = {
+    # [CPOL, CPHA]
+    "MODE0" : [0, 0],
+    "MODE1" : [0, 1],
+    "MODE2" : [1, 0],
+    "MODE3" : [1, 1],
+}
+
+for mode, params in SPI_MODES.items():
+    tb.add_config(
+        "SPI_%s" % (mode),
+        parameters={
+            "CPOL" : params[0],
+            "CPHA" : params[1]
+        }
+    )
+
 # Suppress vopt deprecation error
 vu.add_compile_option('modelsim.vlog_flags', ['-suppress', '12110'])
 
