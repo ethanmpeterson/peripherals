@@ -4,11 +4,13 @@
 `include "vunit_defines.svh"
 
 module spi_master_tb;
+    // These params will be overriden by the test bench
+    parameter int CPOL = 0;
+    parameter int CPHA = 0;
+
     localparam TRANSFER_WIDTH = 8;    
     localparam FIFO_DEPTH = 2;
 
-    localparam CPOL = 0;
-    localparam CPHA = 0;
 
     localparam KEEP_WIDTH = 1;
 
@@ -114,7 +116,7 @@ module spi_master_tb;
             miso_stream.tready = 1'b1;
         end
 
-        `TEST_CASE("view_spi_timing_diagram") begin
+        `TEST_CASE("spi_loopback_test") begin
             automatic int bytes_consumed = 0;
             while (bytes_consumed < 40) begin
                 @(posedge spi_clk) begin
