@@ -6,7 +6,14 @@ module peripherals (
     output var logic blinky,
 
     output var logic ftdi_uart_tx,
-    input var logic ftdi_uart_rx
+    input var logic ftdi_uart_rx,
+
+    // SPI bus accelerometer
+    output var logic accel_pmod_cs,
+    output var logic accel_pmod_mosi,
+    output var logic accel_pmod_sck,
+
+    input var logic accel_pmod_miso
 );
     // global reset signal propagated down into all submodules assertion has the
     // effect of resetting the entire design
@@ -33,6 +40,14 @@ module peripherals (
         end else begin
             counter <= counter + 1;
         end
+    end
+
+    always_comb begin
+        // temporary default values for SPI signals
+        accel_pmod_cs = 1'b1;
+
+        accel_pmod_mosi = 1'b0;
+        accel_pmod_sck = 1'b0;
     end
 
 endmodule

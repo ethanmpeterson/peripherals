@@ -29,14 +29,12 @@ module spi_master_tb;
         spi_clk <= !spi_clk;
     end
 
-    // hookup SPI signals for timing diagram inspection    
-    var logic miso;
+    spi_interface #(
+        .CS_COUNT(1)
+    ) spi_bus ();
 
-    var logic cs = 1;
-    var logic sck = 0;
-    var logic mosi = 0;
 
-    assign miso = mosi; // loop back test
+    assign spi_bus.miso = spi_bus.mosi; // loop back test
 
     axis_interface #(
         .DATA_WIDTH(TRANSFER_WIDTH),
@@ -62,11 +60,7 @@ module spi_master_tb;
         .CPHA(CPHA)
     ) DUT (
         .spi_clk(spi_clk),
-
-        .miso(miso),
-        .cs(cs),
-        .sck(sck),
-        .mosi(mosi),
+        .spi_bus(spi_bus),
 
         .mosi_stream(mosi_stream.Sink),
         .miso_stream(miso_stream.Source)
@@ -126,11 +120,9 @@ module spi_master_tb;
                 @(posedge spi_clk) begin
                     bytes_consumed = bytes_consumed + 1;
 
-                    // if (miso_stream.tready && miso_stream.tvalid) begin
-                    //     rx_data <= miso_stream.tdata;
-
-                    //     miso_stream.tready <= 1'b0;
-                    // end
+                    if (miso_stream.tready && miso_stream.tvalid) begin
+                        `CHECK_EQUAL(miso_stream.tdata, 69);
+                    end
                 end
             end
         end
