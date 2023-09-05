@@ -4,8 +4,11 @@
 ## - rename the used ports (in each line, after get_ports) according to the top level signal names in the project
 
 ## Clock signal
-set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports { clk_100 }]; #IO_L12P_T1_MRCC_35 Sch=gclk[100]
-create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports { clk_100 }];
+set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports { ext_clk }]; #IO_L12P_T1_MRCC_35 Sch=gclk[100]
+create_clock -add -name ext_clk -period 10.00 -waveform {0 5} [get_ports { ext_clk }];
+
+# Create clocks for the PLL outputs
+set_clock_groups -group clk_100_peripheral_clk_div -group spi_clk_peripheral_clk_div -group ext_clk -group clkfbout_peripheral_clk_div -asynchronous
 
 ## Switches
 #set_property -dict { PACKAGE_PIN A8    IOSTANDARD LVCMOS33 } [get_ports { sw[0] }]; #IO_L12N_T1_MRCC_16 Sch=sw[0]
@@ -35,6 +38,7 @@ create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports { c
 
 # For example purposes
 set_property -dict { PACKAGE_PIN T10   IOSTANDARD LVCMOS33 } [get_ports { blinky }]; #IO_L24N_T3_A00_D16_14 Sch=led[7]
+set_property -dict { PACKAGE_PIN T9    IOSTANDARD LVCMOS33 } [get_ports { accel_status_led }]; #IO_L24P_T3_A01_D17_14 Sch=led[6]
 
 ## Buttons
 #set_property -dict { PACKAGE_PIN D9    IOSTANDARD LVCMOS33 } [get_ports { btn[0] }]; #IO_L6N_T0_VREF_16 Sch=btn[0]

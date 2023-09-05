@@ -2,8 +2,9 @@
 `default_nettype none
 
 module peripherals (
-    input var logic clk_100,
+    input var logic ext_clk,
     output var logic blinky,
+    output var logic accel_status_led,
 
     output var logic ftdi_uart_tx,
     input var logic ftdi_uart_rx,
@@ -15,9 +16,24 @@ module peripherals (
 
     input var logic accel_pmod_miso
 );
+
     // global reset signal propagated down into all submodules assertion has the
     // effect of resetting the entire design
     var logic system_reset = 0;
+
+    var logic locked;
+    var logic spi_clk;
+    var logic clk_100;
+    peripheral_clk_div clk_splitter (
+        .clk_100(clk_100),     // output clk_100
+        .spi_clk(spi_clk),     // output spi_clk
+        // Status and control signals
+        .reset(system_reset), // input reset
+        .locked(locked),       // output locked
+
+        // Clock in ports
+        .ext_clk(ext_clk)      // input ext_clk
+    );
 
     axis_interface internal (
         .clk(clk_100),
@@ -32,23 +48,34 @@ module peripherals (
         .rxd(ftdi_uart_rx)
     ); 
 
-    var logic[31:0] counter = 0;
-    always_ff @(posedge clk_100) begin : blink_logic
-        if (counter == 50_000_000) begin
-            blinky <= ~blinky;
-            counter <= 0;
-        end else begin
-            counter <= counter + 1;
-        end
-    end
+    axis_interface #(
+        .DATA_WIDTH(64),
+        .KEEP_WIDTH(1)
+    ) accelerometer_data (
+        .clk(clk_100),
+        .reset(system_reset)
+    );
 
-    always_comb begin
-        // temporary default values for SPI signals
-        accel_pmod_cs = 1'b1;
+    spi_interface #(
+        .CS_COUNT(1)
+    ) accel_spi_bus ();
 
-        accel_pmod_mosi = 1'b0;
-        accel_pmod_sck = 1'b0;
-    end
+    // connect the spi signals to FPGA I/O 
+    assign accel_pmod_cs = accel_spi_bus.cs;
+    assign accel_pmod_mosi = accel_spi_bus.mosi;
+    assign accel_pmod_sck = accel_spi_bus.sck;
+
+    assign accel_spi_bus.miso = accel_pmod_miso;
+
+    adxl345 accelerometer (
+        .configured(accel_status_led),
+        .sys_clk(clk_100),
+        .reset(system_reset),
+        .spi_ref_clk(spi_clk),
+        .spi_bus(accel_spi_bus.Master),
+        .accelerometer_data(accelerometer_data)
+    );
 
 endmodule
+
 `default_nettype wire
