@@ -32,15 +32,15 @@ module adxl345 (
 
     spi_master #(
         .TRANSFER_WIDTH(16),
-        .FIFO_DEPTH(32),
+        .FIFO_DEPTH(4),
         .CPOL(1),
         .CPHA(1)
     ) adxl345_spi_master (
         .spi_clk(spi_ref_clk),
         .spi_bus(spi_bus),
 
-        .mosi_stream(command_stream),
-        .miso_stream(response_stream)
+        .mosi_stream(command_stream.Sink),
+        .miso_stream(response_stream.Source)
     );
 
     // TODO
@@ -69,13 +69,13 @@ module adxl345 (
         REG_POWER_CTL = 6'h2D,
         REG_DATA_FORMAT = 6'h31,
         REG_INT_ENABLE = 6'h2E,
-        REG_FIFO_CTL = 6'38,
+        REG_FIFO_CTL = 6'h38,
         REG_DATAX0 = 6'h32,
         REG_DATAX1 = 6'h33,
         REG_DATAY0 = 6'h34,
         REG_DATAY1 = 6'h35,
         REG_DATAZ0 = 6'h36,
-        REG_DATAZ0 = 6'h37;
+        REG_DATAZ1 = 6'h37;
 
     // Define the command set
     localparam
@@ -85,11 +85,11 @@ module adxl345 (
     // See datasheet here for more info on data contents being written to
     // register
     localparam
-        ADXL345_COMMAND_CONFIGURE_POWER_CTL = {REG_WRITE, 0, REG_POWER_CTL, 8'b00001000},
-        ADXL345_COMMAND_DEVID_READ = {REG_READ, 0, REG_DEVID, 8{1'b0}},
-        ADXL345_COMMAND_CONFIGURE_DATA_FORMAT = {REG_WRITE, 0, REG_DATA_FORMAT, 8'b0000_00_00},
-        ADXL345_COMMAND_CONFIGURE_INT_ENABLE = {REG_WRITE, 0, REG_INT_ENABLE, 8{1'b0}},
-        ADXL345_COMMAND_CONFIGURE_FIFO_CTL = {REG_WRITE, 0, REG_FIFO_CTL, 8'b0000_0000};
+        ADXL345_COMMAND_CONFIGURE_POWER_CTL = {REG_WRITE, 1'b0, REG_POWER_CTL, 8'b00001000},
+        ADXL345_COMMAND_DEVID_READ = {REG_READ, 1'b0, REG_DEVID, {8{1'b0}} },
+        ADXL345_COMMAND_CONFIGURE_DATA_FORMAT = {REG_WRITE, 1'b0, REG_DATA_FORMAT, 8'b0000_00_00},
+        ADXL345_COMMAND_CONFIGURE_INT_ENABLE = {REG_WRITE, 1'b0, REG_INT_ENABLE, {8{1'b0}} },
+        ADXL345_COMMAND_CONFIGURE_FIFO_CTL = {REG_WRITE, 1'b0, REG_FIFO_CTL, 8'b0000_0000};
         // TODO: configure offsets before reading actual data
 
     typedef enum int {
@@ -105,7 +105,9 @@ module adxl345 (
         ADXL345_READ_DATAX0,
         ADXL345_READ_DATAX1,
         ADXL345_READ_DATAY0,
-        ADXL345_READ_DATAY1
+        ADXL345_READ_DATAY1,
+
+        ADXL345_CONFIGURATION_FAILED
     } adxl345_state_t;
 
     adxl345_state_t state = ADXL345_IDLE;
@@ -114,14 +116,14 @@ module adxl345 (
         case(state)
             ADXL345_IDLE: begin
                 // Init some stream signals
-                mosi_stream.tvalid <= 1'b0;
-                mosi_stream.tkeep <= 1'b1;
-                mosi_stream.tlast <= 1'b1;
-                mosi_stream.tuser <= 0;
-                mosi_stream.tid <= 0;
-                mosi_stream.tdest <= 0;
+                command_stream.tvalid <= 1'b0;
+                command_stream.tkeep <= 1'b1;
+                command_stream.tlast <= 1'b1;
+                command_stream.tuser <= 0;
+                command_stream.tid <= 0;
+                command_stream.tdest <= 0;
 
-                miso_stream.tready <= 1'b1;
+                response_stream.tready <= 1'b1;
                 
                 configured <= 1'b0;
                 // Not sure what we will have hold us in this state but for now
@@ -132,13 +134,13 @@ module adxl345 (
             end
 
             ADXL345_SET_POWER_CTL: begin
-                mosi_stream.tdata <= ADXL345_COMMAND_CONFIGURE_POWER_CTL;
-                mosi_stream.tvalid <= 1'b1;
+                command_stream.tdata <= ADXL345_COMMAND_CONFIGURE_POWER_CTL;
+                command_stream.tvalid <= 1'b1;
 
-                if (mosi_stream.tvalid && mosi_stream.tready) begin
+                if (command_stream.tvalid && command_stream.tready) begin
                     // when the command is loaded into the FIFO, proceed to the
                     // next state
-                    mosi_stream.tvalid <= 1'b0;
+                    command_stream.tvalid <= 1'b0;
 
                     state <= ADXL345_READ_DEVID;
                 end
@@ -148,22 +150,22 @@ module adxl345 (
                 // empty out the queue from prior writes. Note that we should
                 // add the ability to inhibit write with tuser flags on the MOSI
                 // stream.
-                if (!miso_stream.tvalid) begin
-                    miso_stream.tready <= 1'b0;
+                if (!response_stream.tvalid) begin
+                    response_stream.tready <= 1'b0;
                     
                     // load up the devid read command
-                    mosi_stream.tdata <= ADXL345_COMMAND_DEVID_READ;
-                    mosi_stream.tvalid <= 1'b1;
+                    command_stream.tdata <= ADXL345_COMMAND_DEVID_READ;
+                    command_stream.tvalid <= 1'b1;
                 end
 
-                if (mosi_stream.tvalid && mosi_stream.tready) begin
+                if (command_stream.tvalid && command_stream.tready) begin
                     // We wrote the command out to the queue
 
                     // Now end the write operation
-                    mosi_stream.tvalid <= 1'b1;
+                    command_stream.tvalid <= 1'b1;
 
                     // say we are ready for the received data
-                    miso_stream.tready <= 1'b1;
+                    response_stream.tready <= 1'b1;
 
                     // advance to the verification state
                     state <= ADXL345_VERIFY_DEVID;
@@ -171,10 +173,10 @@ module adxl345 (
             end
 
             ADXL345_VERIFY_DEVID: begin
-                if (miso_stream.tvalid && miso_stream.tready) begin
-                    miso_stream.tready <= 1'b0;
+                if (response_stream.tvalid && response_stream.tready) begin
+                    response_stream.tready <= 1'b0;
 
-                    if ((miso_stream.tdata & 16'h00_FF) == 8'b11100101) begin
+                    if ((response_stream.tdata & 16'h00_FF) == 8'b11100101) begin
                         // We validated that the device ID is good
                         state <= ADXL345_ENABLE_INTERRUPTS;
                     end else begin
@@ -185,7 +187,7 @@ module adxl345 (
 
             ADXL345_ENABLE_INTERRUPTS: begin
                 // TODO: For now just chill here
-                configured <= 1'b0;
+                configured <= 1'b1;
             end
 
             ADXL345_CONFIGURATION_FAILED: begin
