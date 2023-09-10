@@ -24,7 +24,7 @@ module peripherals (
     var logic locked;
     var logic spi_clk;
     var logic clk_100;
-    peripheral_clk_div clk_splitter (
+    cdiv clk_splitter (
         .clk_100(clk_100),     // output clk_100
         .spi_clk(spi_clk),     // output spi_clk
         // Status and control signals
@@ -67,14 +67,14 @@ module peripherals (
 
     assign accel_spi_bus.miso = accel_pmod_miso;
 
-    adxl345 accelerometer (
-        .configured(accel_status_led),
-        .sys_clk(clk_100),
-        .reset(system_reset),
-        .spi_ref_clk(spi_clk),
-        .spi_bus(accel_spi_bus.Master),
-        .accelerometer_data(accelerometer_data)
-    );
+    // adxl345 accelerometer (
+    //     .configured(accel_status_led),
+    //     .sys_clk(clk_100),
+    //     .reset(system_reset),
+    //     .spi_ref_clk(spi_clk),
+    //     .spi_bus(accel_spi_bus.Master),
+    //     .accelerometer_data(accelerometer_data)
+    // );
 
 endmodule
 
