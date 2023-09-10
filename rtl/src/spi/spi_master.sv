@@ -162,7 +162,7 @@ module spi_master #(
     typedef enum int {
         SPI_MASTER_RECEIVER_START_RECEIVE,
         SPI_MASTER_RECEIVER_RECEIVING,
-        SPI_MASTER_RECEIVER_END_RECEIVE
+        SPI_MASTER_RECEIVER_WRITE_STREAM
     } spi_master_receiver_state_t;
 
     spi_master_receiver_state_t receiver_state = SPI_MASTER_RECEIVER_START_RECEIVE;
@@ -180,14 +180,23 @@ module spi_master #(
 
             SPI_MASTER_RECEIVER_RECEIVING: begin
                 // use sampling edge strobe signal to read in MISO values
-                if (sampling_edge) begin
+                if (sampling_edge && receive_bit_idx >= 0) begin
                     miso_data[receive_bit_idx] <= spi_bus.miso;
 
                     receive_bit_idx <= receive_bit_idx - 1;
                 end
 
-                // when the transaction ends, stop receiving
+                // when the transaction ends, stop receiving and put data on the stream
                 if (spi_bus.cs) begin
+                    receiver_state <= SPI_MASTER_RECEIVER_WRITE_STREAM;
+                end
+            end
+
+            SPI_MASTER_RECEIVER_WRITE_STREAM: begin
+                miso_stream.tvalid <= 1'b1;
+                if (miso_stream.tvalid && miso_stream.tready) begin
+                    miso_stream.tvalid <= 1'b0;
+
                     receiver_state <= SPI_MASTER_RECEIVER_START_RECEIVE;
                 end
             end

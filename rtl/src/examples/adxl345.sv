@@ -3,11 +3,7 @@
 
 module adxl345 (
     output var logic configured, // signal to indicate we configured the device successfully
-
-    input var logic sys_clk, // main clock domain
     input var logic reset,
-
-    input var logic spi_ref_clk, // low speed SPI clock
 
     spi_interface.Master spi_bus,
 
@@ -18,7 +14,7 @@ module adxl345 (
         .DATA_WIDTH(TRANSFER_WIDTH),
         .KEEP_WIDTH(1)
     ) command_stream (
-        .clk(sys_clk),
+        .clk(accelerometer_data.clk),
         .reset(reset)
     );
 
@@ -26,17 +22,16 @@ module adxl345 (
         .DATA_WIDTH(TRANSFER_WIDTH),
         .KEEP_WIDTH(1)
     ) response_stream (
-        .clk(sys_clk),
+        .clk(accelerometer_data.clk),
         .reset(reset)
     );
 
     spi_master #(
         .TRANSFER_WIDTH(16),
-        .FIFO_DEPTH(4),
+        .CLKS_PER_HALF_BIT(50), // for 100 MHz sys clock
         .CPOL(1),
         .CPHA(1)
     ) adxl345_spi_master (
-        .spi_clk(spi_ref_clk),
         .spi_bus(spi_bus),
 
         .mosi_stream(command_stream.Sink),
@@ -86,10 +81,11 @@ module adxl345 (
     // register
     localparam
         ADXL345_COMMAND_CONFIGURE_POWER_CTL = {REG_WRITE, 1'b0, REG_POWER_CTL, 8'b00001000},
-        ADXL345_COMMAND_DEVID_READ = {REG_READ, 1'b0, REG_DEVID, {8{1'b0}} },
+        ADXL345_COMMAND_DEVID_READ = {REG_READ, 1'b0, REG_DEVID, {8{1'b0}}},
         ADXL345_COMMAND_CONFIGURE_DATA_FORMAT = {REG_WRITE, 1'b0, REG_DATA_FORMAT, 8'b0000_00_00},
-        ADXL345_COMMAND_CONFIGURE_INT_ENABLE = {REG_WRITE, 1'b0, REG_INT_ENABLE, {8{1'b0}} },
+        ADXL345_COMMAND_CONFIGURE_INT_ENABLE = {REG_WRITE, 1'b0, REG_INT_ENABLE, {8{1'b0}}},
         ADXL345_COMMAND_CONFIGURE_FIFO_CTL = {REG_WRITE, 1'b0, REG_FIFO_CTL, 8'b0000_0000};
+
         // TODO: configure offsets before reading actual data
 
     typedef enum int {
@@ -112,7 +108,7 @@ module adxl345 (
 
     adxl345_state_t state = ADXL345_IDLE;
 
-    always_ff @(posedge sys_clk) begin
+    always_ff @(posedge accelerometer_data.clk) begin
         case(state)
             ADXL345_IDLE: begin
                 // Init some stream signals
@@ -147,20 +143,9 @@ module adxl345 (
             end
             
             ADXL345_READ_DEVID: begin
-                // empty out the queue from prior writes. Note that we should
-                // add the ability to inhibit write with tuser flags on the MOSI
-                // stream.
-                if (!response_stream.tvalid) begin
-                    response_stream.tready <= 1'b0;
-                    
-                    // load up the devid read command
-                    command_stream.tdata <= ADXL345_COMMAND_DEVID_READ;
-                    command_stream.tvalid <= 1'b1;
-                end
-
+                command_stream.tdata <= ADXL345_COMMAND_DEVID_READ;
+                command_stream.tvalid <= 1'b1;
                 if (command_stream.tvalid && command_stream.tready) begin
-                    // We wrote the command out to the queue
-
                     // Now end the write operation
                     command_stream.tvalid <= 1'b1;
 
@@ -192,7 +177,7 @@ module adxl345 (
 
             ADXL345_CONFIGURATION_FAILED: begin
                 // can set the LED for debugging
-                configured <= 1'b1;
+                configured <= 1'b0;
             end
         endcase
     end
