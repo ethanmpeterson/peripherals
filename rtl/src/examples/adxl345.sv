@@ -147,7 +147,7 @@ module adxl345 (
                 command_stream.tvalid <= 1'b1;
                 if (command_stream.tvalid && command_stream.tready) begin
                     // Now end the write operation
-                    command_stream.tvalid <= 1'b1;
+                    command_stream.tvalid <= 1'b0;
 
                     // say we are ready for the received data
                     response_stream.tready <= 1'b1;

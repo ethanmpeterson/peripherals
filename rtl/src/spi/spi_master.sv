@@ -21,7 +21,8 @@ module spi_master #(
     localparam SPI_MODE = (CPOL << 1) | CPHA;
 
     localparam SPI_CLOCK_IDLE_STATE = CPOL;
-    localparam SPI_CLOCK_SAMPLING_EDGE = (SPI_MODE == 0 || SPI_MODE == 1);
+
+    localparam SPI_CLOCK_SAMPLING_EDGE = (SPI_MODE == 0 || SPI_MODE == 3);
     localparam SPI_CLOCK_DATA_UPDATE_EDGE = (SPI_MODE == 1 || SPI_MODE == 2);
 
     typedef enum int {
@@ -47,6 +48,7 @@ module spi_master #(
     var logic got_first_sample;
     
     always_ff @(posedge mosi_stream.clk) begin
+        sampling_edge <= 1'b0;
         case (transmitter_state)
             SPI_MASTER_TRANSMITTER_INIT: begin
                 spi_bus.mosi <= 1'b0;
@@ -92,10 +94,6 @@ module spi_master #(
                 end
             end
 
-            // This is working on
-
-            // MODE3
-            // MODE1
             SPI_MASTER_TRANSMITTER_TRANSFERRING: begin
                 // generate the SPI clock
                 if (transfer_clock_cycle_count == CLKS_PER_HALF_BIT - 1) begin
@@ -103,14 +101,14 @@ module spi_master #(
                     transfer_clock_cycle_count <= 0;
 
                     spi_bus.sck <= !spi_bus.sck;
+
+                    // generate sampling pulses for the receiver
                     // assert pulse signal when we have a sampling edge. This
                     // tells the receiver state machine when to sample the
                     // contents of MISO
                     if (!spi_bus.sck == SPI_CLOCK_SAMPLING_EDGE) begin
                         sampling_edge <= 1'b1;
                         got_first_sample <= 1'b1;
-                    end else begin
-                        sampling_edge <= 1'b0;
                     end
 
                     // update the data using the sck signal
@@ -135,6 +133,19 @@ module spi_master #(
                     transfer_clock_cycle_count <= 0;
 
                     spi_bus.sck <= !spi_bus.sck;
+
+                    // NOTE: I think rather than repeating this block, we can
+                    // somehow clean it up I think the same way we use a
+                    // sampling edge strobe signal, we could also add an update
+                    // edge strobe signal. This will save a lot of code
+                    // repitition and probably make the state machine more
+                    // readable / simple.
+                    if (!spi_bus.sck == SPI_CLOCK_SAMPLING_EDGE) begin
+                        // only re assign sampling edge for a single cycle
+                        sampling_edge <= 1'b1;
+                        got_first_sample <= 1'b1;
+                    end
+
                     if (!spi_bus.sck == SPI_CLOCK_DATA_UPDATE_EDGE) begin
                         spi_bus.cs <= 1'b1; // end this transfer
 
@@ -172,6 +183,7 @@ module spi_master #(
     always_ff @(posedge miso_stream.clk) begin
         case (receiver_state)
             SPI_MASTER_RECEIVER_START_RECEIVE: begin
+                miso_data <= 0;
                 receive_bit_idx <= TRANSFER_WIDTH - 1;
                 if (!spi_bus.cs) begin
                     receiver_state <= SPI_MASTER_RECEIVER_RECEIVING;
@@ -194,6 +206,7 @@ module spi_master #(
 
             SPI_MASTER_RECEIVER_WRITE_STREAM: begin
                 miso_stream.tvalid <= 1'b1;
+                miso_stream.tdata <= miso_data;
                 if (miso_stream.tvalid && miso_stream.tready) begin
                     miso_stream.tvalid <= 1'b0;
 
