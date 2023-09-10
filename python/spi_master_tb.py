@@ -31,7 +31,7 @@ tb = lib.test_bench("spi_master_tb")
 # add all posible idle and clock polarity variants
 SPI_MODES = {
     # [CPOL, CPHA]
-    "MODE0" : [1, 1],
+    "MODE0" : [0, 0],
     "MODE1" : [0, 1],
     "MODE2" : [1, 0],
     "MODE3" : [1, 1],
