@@ -3,236 +3,95 @@
 
 module spi_master #(
     parameter TRANSFER_WIDTH = 8,
-    parameter FIFO_DEPTH = 32,
+
+    // default for a 100 MHz clock
+    parameter CLKS_PER_HALF_BIT = 50,
     
-    // SPI Mode Settings, from https://iopscience.iop.org/article/10.1088/1742-6596/1449/1/012027/pdf
-
-    // Mode 0: CPOL = 0, CPHA=0. The SCK serial clock line idle is low, data is
-    // sampled on the rising edge of the SCK clock, and data is switched on the
-    // falling edge of the SCK clock;
-
-    //Mode 1: CPOL = 0, CPHA=1. The SCK serial clock line idle is low, data is
-    //sampled on the falling edge of the SCK clock, and data is switched on the
-    //rising edge of the SCK clock;
-
-    // Mode 2: CPOL = 1, CPHA = 0. The SCK serial clock line idle is high, data
-    // is sampled on the falling edge of the SCK clock, and data is switched on
-    // the rising edge of the SCK clock;
-
-    // Mode 3: CPOL = 1, CPHA = 1. The SCK serial clock line idle is high, data
-    // is sampled on the rising edge of the SCK clock, and data is switched on
-    // the falling edge of the SCK clock.
-
     parameter CPOL = 0, // sck idle state
     parameter CPHA = 0 // sampling edge (0 for rising, 1 for falling)
 ) (
-
-    // reference clock to make the SPI signals. Produced from an external clock
-    // division IP. (usually provided by the CAD tool but it can also be coded
-    // up manually)
-    input var logic spi_clk,
-    
+    input var logic miso_en,
     spi_interface.Master spi_bus,
 
+    // it is assumed that these two streams share the same clock
     axis_interface.Sink mosi_stream,
     axis_interface.Source miso_stream
 );
-    localparam KEEP_WIDTH = 1;
-
-    var logic internal_reset = 0;
-    axis_interface #(
-        .DATA_WIDTH(TRANSFER_WIDTH),
-        .KEEP_WIDTH(KEEP_WIDTH)
-    ) mosi_frame_stream (
-        .clk(spi_clk),
-        .reset(internal_reset)
-    );
-
-    axis_fifo_status_interface mosi_fifo_sink_status ();
-    axis_fifo_status_interface mosi_fifo_source_status ();
-    axis_async_fifo_wrapper #(
-        .DEPTH(FIFO_DEPTH),
-        .KEEP_WIDTH(KEEP_WIDTH),
-        .DATA_WIDTH(TRANSFER_WIDTH)
-    ) mosi_fifo (
-        .sink(mosi_stream),
-        .source(mosi_frame_stream),
-
-        .sink_status(mosi_fifo_sink_status),
-        .source_status(mosi_fifo_source_status)
-    );
-
-
-    axis_interface #(
-        .DATA_WIDTH(TRANSFER_WIDTH),
-        .KEEP_WIDTH(KEEP_WIDTH)
-    ) miso_frame_stream (
-        .clk(spi_clk),
-        .reset(internal_reset)
-    );
-
-    axis_fifo_status_interface miso_fifo_sink_status ();
-    axis_fifo_status_interface miso_fifo_source_status ();
-    axis_async_fifo_wrapper #(
-        .DEPTH(FIFO_DEPTH),
-        .KEEP_WIDTH(KEEP_WIDTH),
-        .DATA_WIDTH(TRANSFER_WIDTH)
-    ) miso_fifo (
-        .sink(miso_frame_stream),
-        .source(miso_stream),
-
-        .sink_status(miso_fifo_sink_status),
-        .source_status(miso_fifo_source_status)
-    );
+    localparam SPI_CLOCK_IDLE_STATE = CPOL;
+    localparam SPI_CLOCK_SAMPLING_EDGE = CPHA;
+    localparam SPI_CLOCK_DATA_UPDATE_EDGE = !CPHA;
 
     typedef enum int {
         SPI_MASTER_TRANSMITTER_IDLE,
-        SPI_MASTER_TRANSMITTER_START_TRANSFER,
-        SPI_MASTER_TRANSMITTER_TRANSFERRING,
-        SPI_MASTER_TRANSMITTER_END_TRANSFER
+        SPI_MASTER_TRANSMITTER_TRANSFERRING
     } spi_master_transmitter_state_t;
 
-    spi_master_transmitter_state_t transmitter_state = SPI_MASTER_TRANSMITTER_IDLE;
-    var logic[$clog2(TRANSFER_WIDTH)-1:0] transfer_bit_idx;
-    var logic[TRANSFER_WIDTH-1:0] tx_data;
+    spi_master_transmitter_state_t transmitter_state = SPI_MASTER_TRANSMITTER_INIT;
 
-    // need to look at both rising and falling edge to sample correctly.
-    always_ff @(spi_clk) begin
+    var logic[TRANSFER_WIDTH-1:0] mosi_data;
+    var logic[TRANSFER_WIDTH-1:0] miso_data;
+    var logic[$clog2(TRANSFER_WIDTH)-1:0] transfer_bit_idx;
+    var logic[$clog2(CLKS_PER_HALF_BIT):0] transfer_clock_cycle_count;
+    always_ff @(posedge mosi_stream.clk) begin
         case (transmitter_state)
             SPI_MASTER_TRANSMITTER_IDLE: begin
-                // SPI Bus signal init
+                // Initialize SPI outputs
+                spi_bus.sck <= SPI_CLOCK_IDLE_STATE;
                 spi_bus.mosi <= 1'b0;
                 spi_bus.cs <= 1'b1;
 
-                // Tell the queue we are ready to tx a new frame.
                 transfer_bit_idx <= TRANSFER_WIDTH - 1;
-                spi_bus.cs <= 1'b1;
+                transfer_clock_cycle_count <= $clog2(CLKS_PER_HALF_BIT){1'b0};
 
-                // collect the data from the queue on the rising edge
-                if (spi_clk == 1'b1) begin
-                    mosi_frame_stream.tready <= 1'b1;
-                    // Do we have a new SPI frame available in the queue? If so,
-                    // transfer it out.
-                    if (mosi_frame_stream.tready && mosi_frame_stream.tvalid) begin
-                        tx_data <= mosi_frame_stream.tdata;
-                        
-                        // place the first bit on the MOSI line
-                        spi_bus.mosi <= mosi_frame_stream.tdata[transfer_bit_idx];
-                        transfer_bit_idx <= transfer_bit_idx;
-                        transmitter_state <= SPI_MASTER_TRANSMITTER_START_TRANSFER;
-                    end
-                end
-            end
+                mosi_data <= TRANSFER_WIDTH{1'b0};
+                mosi_stream.tready <= 1'b1;
+                if (mosi_stream.tvalid && mosi_stream.tready) begin
+                    mosi_stream.tready <= 1'b0;
 
-            SPI_MASTER_TRANSMITTER_START_TRANSFER: begin
-                // Note that we always arrive in this state on the falling edge of the spi_clk
-                spi_bus.cs <= 1'b0;
+                    // latch the mosi data from the stream
+                    mosi_data <= mosi_stream.tdata;
 
-                // if we are on the edge specified in the peripheral parameters.
-                // Proceed onward to the transferring state.
-                if (spi_clk == !CPHA) begin
-                    // place the next bit on MOSI so it is ready for the next sampling
-                    spi_bus.mosi <= tx_data[transfer_bit_idx];
-                    transfer_bit_idx <= transfer_bit_idx - 1;
+                    // in this design we are controlling cs inside the module,
+                    // could also look at designs where the controller does this
+                    // instead
+                    spi_bus.cs <= 1'b0;
 
                     transmitter_state <= SPI_MASTER_TRANSMITTER_TRANSFERRING;
                 end
             end
 
             SPI_MASTER_TRANSMITTER_TRANSFERRING: begin
-                // Finish the remainder of the transfer
-                if (spi_clk == !CPHA) begin
-                    if (transfer_bit_idx > 0) begin
-                        // TODO: can delete the tracking index entirely with bit shifting
-                        spi_bus.mosi <= tx_data[transfer_bit_idx];
-                        transfer_bit_idx <= transfer_bit_idx - 1;
-                    end else begin // transfer_bit_idx == 0
-                        spi_bus.mosi <= tx_data[0];
-                        transfer_bit_idx <= TRANSFER_WIDTH;
+                // count cycles to match SPI clock
+                if (transfer_clock_cycle_count == CLKS_PER_HALF_BIT - 1) begin                    
 
-                        transmitter_state <= SPI_MASTER_TRANSMITTER_END_TRANSFER;
+                    // HANDLE tx here
+                    spi_bus.sck <= !spi_bus.sck;
+                    if (!spi_bus.sck == SPI_CLOCK_DATA_UPDATE_EDGE) begin
+                        spi_bus.mosi <= mosi_data[transfer_bit_idx];
                     end
-                end
-            end
 
-            SPI_MASTER_TRANSMITTER_END_TRANSFER: begin
-                transmitter_state <= SPI_MASTER_TRANSMITTER_IDLE;
+                    // escape this state when we run out of bits to transfer
+                    if (transfer_bit_idx == 0) begin
+                        transmitter_state <= SPI_MASTER_TRANSMITTER_IDLE;
+                    end
+
+                    transfer_bit_idx <= transfer_bit_idx - 1;
+                end
+
+
+                transfer_clock_cycle_count <= transfer_clock_cycle_count + 1;
             end
         endcase
-    end
 
-    // HANDLE the state of our SCK pin relative to the spi_clk We want this pin
-    // to idle in the correct state when no transfer is taking place. This
-    // combinational approach may cause glitches, I will do further research to
-    // determine if that is acceptable.
-
-    always_comb begin
-        if (transmitter_state == SPI_MASTER_TRANSMITTER_START_TRANSFER ||
-            transmitter_state == SPI_MASTER_TRANSMITTER_TRANSFERRING ||
-            transmitter_state == SPI_MASTER_TRANSMITTER_END_TRANSFER) begin
-            // map sck to the spi clk directly in these states
-            spi_bus.sck = spi_clk;
-        end else begin
-            // place sck in the idle state
-            spi_bus.sck = CPOL;
+        if (mosi_stream.reset) begin
+            // return to IDLE state here and re init
+            transmitter_state <= SPI_MASTER_TRANSMITTER_IDLE;
         end
     end
 
 
-    typedef enum int {
-        SPI_MASTER_RECEIVER_IDLE,
-        SPI_MASTER_RECEIVER_RECEIVING,
-        SPI_MASTER_RECEIVER_END_RECEIVE
-    } spi_master_receiver_state_t;
+    // Do MISO state machine here
 
-    spi_master_receiver_state_t receiver_state = SPI_MASTER_RECEIVER_IDLE;
-
-    var logic[$clog2(TRANSFER_WIDTH)-1:0] receive_bit_idx;
-    always_ff @(posedge spi_clk) begin
-        case (receiver_state)
-            SPI_MASTER_RECEIVER_IDLE: begin
-                receive_bit_idx <= TRANSFER_WIDTH - 1;
-                if (!spi_bus.cs) begin
-                    // cs is always asserted on the faling edge
-                    receiver_state <= SPI_MASTER_RECEIVER_RECEIVING;
-                end
-            end
-
-            SPI_MASTER_RECEIVER_RECEIVING: begin
-                if (spi_clk == !CPHA) begin
-                    // if we are on a sampling edge, populate the rx register accordingly
-                    if (receive_bit_idx > 0) begin
-                        miso_frame_stream.tdata[receive_bit_idx] <= spi_bus.miso;
-                        receive_bit_idx <= receive_bit_idx - 1;
-                    end else begin // receive_bit_idx == 0
-                        miso_frame_stream.tdata[0] <= spi_bus.miso;
-                        miso_frame_stream.tvalid <= 1'b1;
-
-                        receiver_state <= SPI_MASTER_RECEIVER_END_RECEIVE;
-                    end
-                end
-            end
-
-            SPI_MASTER_RECEIVER_END_RECEIVE: begin
-                if (spi_clk) begin
-                    if (miso_frame_stream.tready && miso_frame_stream.tvalid) begin
-                        miso_frame_stream.tvalid <= 1'b0;
-
-                        receiver_state <= SPI_MASTER_RECEIVER_IDLE;
-                    end
-                end
-            end
-        endcase
-    end
-
-    always_comb begin
-        // handle unused AXI Stream signals
-        miso_frame_stream.tkeep = {KEEP_WIDTH{1'b1}};
-        miso_frame_stream.tid = 0;
-        miso_frame_stream.tuser = 0;
-        miso_frame_stream.tdest = 0;
-        miso_frame_stream.tlast = 1'b1;
-    end
 
 endmodule
 
