@@ -21,22 +21,8 @@ module peripherals (
     // effect of resetting the entire design
     var logic system_reset = 0;
 
-    var logic locked;
-    var logic spi_clk;
-    var logic clk_100;
-    cdiv clk_splitter (
-        .clk_100(clk_100),     // output clk_100
-        .spi_clk(spi_clk),     // output spi_clk
-        // Status and control signals
-        .reset(system_reset), // input reset
-        .locked(locked),       // output locked
-
-        // Clock in ports
-        .ext_clk(ext_clk)      // input ext_clk
-    );
-
     axis_interface internal (
-        .clk(clk_100),
+        .clk(ext_clk),
         .reset(system_reset)
     );
 
@@ -52,7 +38,7 @@ module peripherals (
         .DATA_WIDTH(64),
         .KEEP_WIDTH(1)
     ) accelerometer_data (
-        .clk(clk_100),
+        .clk(ext_clk),
         .reset(system_reset)
     );
 
@@ -66,15 +52,12 @@ module peripherals (
     assign accel_pmod_sck = accel_spi_bus.sck;
 
     assign accel_spi_bus.miso = accel_pmod_miso;
-
-    // adxl345 accelerometer (
-    //     .configured(accel_status_led),
-    //     .sys_clk(clk_100),
-    //     .reset(system_reset),
-    //     .spi_ref_clk(spi_clk),
-    //     .spi_bus(accel_spi_bus.Master),
-    //     .accelerometer_data(accelerometer_data)
-    // );
+    adxl345 accelerometer (
+        .configured(accel_status_led),
+        .reset(system_reset),
+        .spi_bus(accel_spi_bus.Master),
+        .accelerometer_data(accelerometer_data)
+    );
 
 endmodule
 
