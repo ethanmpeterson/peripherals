@@ -117,7 +117,9 @@ module spi_master_tb;
                     bytes_consumed = bytes_consumed + 1;
 
                     if (miso_stream.tready && miso_stream.tvalid) begin
-                        // `CHECK_EQUAL(miso_stream.tdata, 69);
+                        `CHECK_EQUAL(miso_stream.tdata, 69);
+
+                        miso_stream.tready <= 1'b0;
                     end
                 end
             end
