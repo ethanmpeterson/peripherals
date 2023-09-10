@@ -25,7 +25,8 @@ module spi_master #(
     typedef enum int {
         SPI_MASTER_TRANSMITTER_INIT,
         SPI_MASTER_TRANSMITTER_START_TRANSFER,
-        SPI_MASTER_TRANSMITTER_TRANSFERRING
+        SPI_MASTER_TRANSMITTER_TRANSFERRING,
+        SPI_MASTER_TRANSMITTER_END_TRANSFER
     } spi_master_transmitter_state_t;
 
     spi_master_transmitter_state_t transmitter_state = SPI_MASTER_TRANSMITTER_INIT;
@@ -83,7 +84,7 @@ module spi_master #(
 
             SPI_MASTER_TRANSMITTER_TRANSFERRING: begin
                 // generate the SPI clock
-                if (transfer_clock_cycle_count == CLKS_PER_HALF_BIT - 1) begin                    
+                if (transfer_clock_cycle_count == CLKS_PER_HALF_BIT - 1) begin
                     // reset the counter
                     transfer_clock_cycle_count <= 0;
 
@@ -91,17 +92,37 @@ module spi_master #(
 
                     // update the data using the sck signal
                     if (!spi_bus.sck == SPI_CLOCK_DATA_UPDATE_EDGE) begin
-                        $display("made it here");
-                        spi_bus.mosi <= mosi_data[transfer_bit_idx];
-                        transfer_bit_idx <= transfer_bit_idx - 1;
+                        if (transfer_bit_idx == 0) begin
+                            spi_bus.mosi <= mosi_data[transfer_bit_idx];
+
+                            transmitter_state <= SPI_MASTER_TRANSMITTER_END_TRANSFER;
+                        end else begin
+                            spi_bus.mosi <= mosi_data[transfer_bit_idx];
+                            transfer_bit_idx <= transfer_bit_idx - 1;
+                        end
                     end
                 end else begin
                     transfer_clock_cycle_count <= transfer_clock_cycle_count + 1;
                 end
+            end
 
-                // escape this state when we run out of bits to transfer
-                if (transfer_bit_idx == 0) begin
-                    transmitter_state <= SPI_MASTER_TRANSMITTER_START_TRANSFER;
+            SPI_MASTER_TRANSMITTER_END_TRANSFER: begin
+                // Handle transferring the last bit
+                if (transfer_clock_cycle_count == CLKS_PER_HALF_BIT - 1) begin
+                    transfer_clock_cycle_count <= 0;
+
+                    spi_bus.sck <= !spi_bus.sck;
+                    if (!spi_bus.sck == SPI_CLOCK_DATA_UPDATE_EDGE) begin
+                        spi_bus.cs <= 1'b1; // end this transfer
+
+                        // prevent glitch by placing clock in the idle state
+                        // rather than adding a false edge
+                        spi_bus.sck <= SPI_CLOCK_IDLE_STATE;
+
+                        transmitter_state <= SPI_MASTER_TRANSMITTER_START_TRANSFER;
+                    end
+                end else begin
+                    transfer_clock_cycle_count <= transfer_clock_cycle_count + 1;
                 end
             end
         endcase
