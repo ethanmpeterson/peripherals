@@ -94,8 +94,6 @@ module spi_master_tb;
         endcase
     end
 
-    var logic [TRANSFER_WIDTH-1:0] rx_data = 69;
-
     `TEST_SUITE begin
         `TEST_SUITE_SETUP begin
             mosi_stream.tdata = 0;
@@ -117,7 +115,7 @@ module spi_master_tb;
                     bytes_consumed = bytes_consumed + 1;
 
                     if (miso_stream.tready && miso_stream.tvalid) begin
-                        `CHECK_EQUAL(miso_stream.tdata, 69);
+                        `CHECK_EQUAL(miso_stream.tdata, 8'b1010_1010);
 
                         miso_stream.tready <= 1'b0;
                     end

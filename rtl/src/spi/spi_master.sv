@@ -18,9 +18,11 @@ module spi_master #(
     axis_interface.Sink mosi_stream,
     axis_interface.Source miso_stream
 );
+    localparam SPI_MODE = (CPOL << 1) | CPHA;
+
     localparam SPI_CLOCK_IDLE_STATE = CPOL;
-    localparam SPI_CLOCK_SAMPLING_EDGE = CPHA;
-    localparam SPI_CLOCK_DATA_UPDATE_EDGE = !CPHA;
+    localparam SPI_CLOCK_SAMPLING_EDGE = (SPI_MODE == 0 || SPI_MODE == 1);
+    localparam SPI_CLOCK_DATA_UPDATE_EDGE = (SPI_MODE == 1 || SPI_MODE == 2);
 
     typedef enum int {
         SPI_MASTER_TRANSMITTER_INIT,
@@ -90,6 +92,10 @@ module spi_master #(
                 end
             end
 
+            // This is working on
+
+            // MODE3
+            // MODE1
             SPI_MASTER_TRANSMITTER_TRANSFERRING: begin
                 // generate the SPI clock
                 if (transfer_clock_cycle_count == CLKS_PER_HALF_BIT - 1) begin
