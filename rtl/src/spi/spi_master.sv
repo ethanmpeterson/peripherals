@@ -37,7 +37,7 @@ module spi_master #(
 
     // single cycle pulse that marks when we hit a sampling edge of the SPI clock
     var logic sampling_edge;
-
+    
     always_ff @(posedge mosi_stream.clk) begin
         case (transmitter_state)
             SPI_MASTER_TRANSMITTER_INIT: begin
@@ -77,8 +77,21 @@ module spi_master #(
 
                         // deliver first clock pulse to keep things aligned.
                         spi_bus.sck <= !spi_bus.sck;
+                        // can OR stuff in later as needed
+                        if (!spi_bus.sck == SPI_CLOCK_DATA_UPDATE_EDGE) begin
+                            spi_bus.mosi <= mosi_data[transfer_bit_idx];
+                            transfer_bit_idx <= transfer_bit_idx - 1;
+                        end
 
-                        transmitter_state <= SPI_MASTER_TRANSMITTER_TRANSFERRING;
+                        // might need to add other SPI modes here
+                        if (CPOL && CPHA) begin
+                            // inhibit exiting the state until we get a sampling edge
+                            if (!spi_bus.sck == SPI_CLOCK_SAMPLING_EDGE) begin
+                                transmitter_state <= SPI_MASTER_TRANSMITTER_TRANSFERRING;
+                            end
+                        end else begin
+                            transmitter_state <= SPI_MASTER_TRANSMITTER_TRANSFERRING;
+                        end
                     end else begin
                         transfer_clock_cycle_count <= transfer_clock_cycle_count + 1;
                     end
