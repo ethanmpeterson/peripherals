@@ -37,6 +37,12 @@ module spi_master #(
 
     // single cycle pulse that marks when we hit a sampling edge of the SPI clock
     var logic sampling_edge;
+
+    // depending on the SPI mode the update edge can come before the sampling
+    // edge when transferring the first bit. This signal is asserted to mark
+    // that the first bit saw a sampling edge allowing us to move onto updating
+    // mosi as normal for the rest of the transfer.
+    var logic got_first_sample;
     
     always_ff @(posedge mosi_stream.clk) begin
         case (transmitter_state)
@@ -46,6 +52,8 @@ module spi_master #(
                 spi_bus.sck <= SPI_CLOCK_IDLE_STATE;
 
                 transfer_clock_cycle_count <= 0;
+
+                got_first_sample <= 1'b0;
 
                 transmitter_state <= SPI_MASTER_TRANSMITTER_START_TRANSFER;
             end
@@ -75,23 +83,7 @@ module spi_master #(
                     if (transfer_clock_cycle_count == CLKS_PER_HALF_BIT - 1) begin
                         transfer_clock_cycle_count <= 0;
 
-                        // deliver first clock pulse to keep things aligned.
-                        spi_bus.sck <= !spi_bus.sck;
-                        // can OR stuff in later as needed
-                        if (!spi_bus.sck == SPI_CLOCK_DATA_UPDATE_EDGE) begin
-                            spi_bus.mosi <= mosi_data[transfer_bit_idx];
-                            transfer_bit_idx <= transfer_bit_idx - 1;
-                        end
-
-                        // might need to add other SPI modes here
-                        if (CPOL && CPHA) begin
-                            // inhibit exiting the state until we get a sampling edge
-                            if (!spi_bus.sck == SPI_CLOCK_SAMPLING_EDGE) begin
-                                transmitter_state <= SPI_MASTER_TRANSMITTER_TRANSFERRING;
-                            end
-                        end else begin
-                            transmitter_state <= SPI_MASTER_TRANSMITTER_TRANSFERRING;
-                        end
+                        transmitter_state <= SPI_MASTER_TRANSMITTER_TRANSFERRING;
                     end else begin
                         transfer_clock_cycle_count <= transfer_clock_cycle_count + 1;
                     end
@@ -110,12 +102,13 @@ module spi_master #(
                     // contents of MISO
                     if (!spi_bus.sck == SPI_CLOCK_SAMPLING_EDGE) begin
                         sampling_edge <= 1'b1;
+                        got_first_sample <= 1'b1;
                     end else begin
                         sampling_edge <= 1'b0;
                     end
 
                     // update the data using the sck signal
-                    if (!spi_bus.sck == SPI_CLOCK_DATA_UPDATE_EDGE) begin
+                    if (!spi_bus.sck == SPI_CLOCK_DATA_UPDATE_EDGE && got_first_sample) begin
                         if (transfer_bit_idx == 0) begin
                             spi_bus.mosi <= mosi_data[transfer_bit_idx];
 
