@@ -32,9 +32,12 @@ module spi_master #(
     spi_master_transmitter_state_t transmitter_state = SPI_MASTER_TRANSMITTER_INIT;
 
     var logic[TRANSFER_WIDTH-1:0] mosi_data;
-    var logic[TRANSFER_WIDTH-1:0] miso_data;
     var logic[$clog2(TRANSFER_WIDTH)-1:0] transfer_bit_idx;
     var logic[$clog2(CLKS_PER_HALF_BIT):0] transfer_clock_cycle_count;
+
+    // single cycle pulse that marks when we hit a sampling edge of the SPI clock
+    var logic sampling_edge;
+
     always_ff @(posedge mosi_stream.clk) begin
         case (transmitter_state)
             SPI_MASTER_TRANSMITTER_INIT: begin
@@ -89,6 +92,14 @@ module spi_master #(
                     transfer_clock_cycle_count <= 0;
 
                     spi_bus.sck <= !spi_bus.sck;
+                    // assert pulse signal when we have a sampling edge. This
+                    // tells the receiver state machine when to sample the
+                    // contents of MISO
+                    if (!spi_bus.sck == SPI_CLOCK_SAMPLING_EDGE) begin
+                        sampling_edge <= 1'b1;
+                    end else begin
+                        sampling_edge <= 1'b0;
+                    end
 
                     // update the data using the sck signal
                     if (!spi_bus.sck == SPI_CLOCK_DATA_UPDATE_EDGE) begin
@@ -134,8 +145,42 @@ module spi_master #(
     end
 
 
-    // Do MISO state machine here
-    // TODO but similar to mosi implementation above
+    // We will monitor for sampling edges of the clock and grab the value on
+    // miso.
+    typedef enum int {
+        SPI_MASTER_RECEIVER_START_RECEIVE,
+        SPI_MASTER_RECEIVER_RECEIVING,
+        SPI_MASTER_RECEIVER_END_RECEIVE
+    } spi_master_receiver_state_t;
+
+    spi_master_receiver_state_t receiver_state = SPI_MASTER_RECEIVER_START_RECEIVE;
+
+    var logic[TRANSFER_WIDTH-1:0] miso_data;
+    var logic[$clog2(TRANSFER_WIDTH)-1:0] receive_bit_idx;
+    always_ff @(posedge miso_stream.clk) begin
+        case (receiver_state)
+            SPI_MASTER_RECEIVER_START_RECEIVE: begin
+                receive_bit_idx <= TRANSFER_WIDTH - 1;
+                if (!spi_bus.cs) begin
+                    receiver_state <= SPI_MASTER_RECEIVER_RECEIVING;
+                end
+            end
+
+            SPI_MASTER_RECEIVER_RECEIVING: begin
+                // use sampling edge strobe signal to read in MISO values
+                if (sampling_edge) begin
+                    miso_data[receive_bit_idx] <= spi_bus.miso;
+
+                    receive_bit_idx <= receive_bit_idx - 1;
+                end
+
+                // when the transaction ends, stop receiving
+                if (spi_bus.cs) begin
+                    receiver_state <= SPI_MASTER_RECEIVER_START_RECEIVE;
+                end
+            end
+        endcase
+    end
 
     // handle unused AXI stream signals in combinational logic here
     always_comb begin
