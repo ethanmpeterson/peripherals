@@ -18,19 +18,13 @@ module adxl345_bfm (
         SEND_DEV_ID
     } adxl345_bfm_state_t;    
 
-    adxl345_bfm_state_t adxl345_bfm_state = WAIT_FOR_CS;
+    adxl345_bfm_state_t adxl345_bfm_state = SEND_DEV_ID;
     var logic[3:0] bit_idx = 15;
     always_ff @(spi_bus.sck) begin
         case (adxl345_bfm_state)
-            WAIT_FOR_CS: begin
-                if (!spi_bus.cs) begin
-                    adxl345_bfm_state <= SEND_DEV_ID;
-                end
-            end
-
             SEND_DEV_ID: begin
                 // if the next edge is an update make sure the next bit is ready on miso
-                if (!spi_bus.sck == ADXL345_UPDATE_EDGE) begin
+                if (!spi_bus.cs && !spi_bus.sck == ADXL345_UPDATE_EDGE) begin
                     spi_bus.miso <= DEVID_RESPONSE[bit_idx];
                     bit_idx <= bit_idx - 1;
                 end
