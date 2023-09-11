@@ -1,3 +1,4 @@
+# Quick and dirty script to dump adxl345 data reported over serial
 import serial
 
 ser = serial.Serial('/dev/ttyUSB1', 115200)
