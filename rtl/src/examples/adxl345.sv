@@ -126,7 +126,7 @@ module adxl345 (
                 // we can go right into the setup sequence for the module
                 
                 // Start with powering up the module
-                state <= ADXL345_SET_POWER_CTL;
+                state <= ADXL345_SET_POWER_CTL;    
             end
 
             ADXL345_SET_POWER_CTL: begin

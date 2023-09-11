@@ -13,7 +13,10 @@ module adxl345_tb;
         clk <= !clk;
     end
 
-    axis_interface accel_data (
+    axis_interface #(
+        .DATA_WIDTH(16),
+        .KEEP_WIDTH(1)
+    ) accel_data (
         .clk(clk),
         .reset(reset)
     );
