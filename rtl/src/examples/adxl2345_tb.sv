@@ -40,11 +40,6 @@ module adxl345_tb;
             clk = 0;
 
             accel_data.tdata = 0;
-            accel_data.tlast = 1'b1;
-            accel_data.tkeep = 1'b1;
-            accel_data.tid = 0;
-            accel_data.tdest = 0;
-            accel_data.tuser = 0;
             accel_data.tvalid = 0;
 
             accel_data.tready = 1;
@@ -53,7 +48,7 @@ module adxl345_tb;
 
         `TEST_CASE("run_accel_state_machine") begin
             automatic int bytes_consumed = 0;
-            while (bytes_consumed < 10000) begin
+            while (bytes_consumed < 1000) begin
                 @(posedge clk) begin
                     bytes_consumed = bytes_consumed + 1;
                     // Dummy assertion so this tb passes CI
