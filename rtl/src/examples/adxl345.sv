@@ -7,7 +7,7 @@ module adxl345 (
 
     spi_interface.Master spi_bus,
 
-    axis_interface accelerometer_data
+    axis_interface.Source accelerometer_data
 );
     localparam TRANSFER_WIDTH = 16;
     axis_interface #(
@@ -96,6 +96,7 @@ module adxl345 (
         ADXL345_SET_4WIRE_SPI, // go from 3 wire to 4 wire SPI
         ADXL345_ENABLE_INTERRUPTS, // This will be configured so we ask for data only when new data is available
         ADXL345_CONFIGURE_FIFO_MODE, // Can put in bypass and read data continuously into the FIFO we have on the FPGA
+        ADXL345_CONFIGURE_DATA_FORMAT,
         
         // Grab 3 axis accelerometer data
         ADXL345_READ_DATAX0,
@@ -103,10 +104,18 @@ module adxl345 (
         ADXL345_READ_DATAY0,
         ADXL345_READ_DATAY1,
 
+        ADXL345_WRITE_ACCEL_DATA_STREAM,
+
         ADXL345_CONFIGURATION_FAILED
     } adxl345_state_t;
 
     adxl345_state_t state = ADXL345_IDLE;
+
+    // This register will be modified to command reads of different registers
+    // for X,Y,Z accel
+    var logic[15:0] ADXL345_COMMAND_ACCEL_READ;
+
+    var logic[7:0] device_id;
 
     always_ff @(posedge accelerometer_data.clk) begin
         case(state)
@@ -163,7 +172,10 @@ module adxl345 (
 
                     if ((response_stream.tdata & 16'h00_FF) == 8'b11100101) begin
                         // We validated that the device ID is good
-                        state <= ADXL345_ENABLE_INTERRUPTS;
+                        // state <= ADXL345_ENABLE_INTERRUPTS;
+                        device_id <= response_stream.tdata[7:0];
+                        configured <= 1'b1;
+                        state <= ADXL345_WRITE_ACCEL_DATA_STREAM;
                     end else begin
                         state <= ADXL345_CONFIGURATION_FAILED;
                     end
@@ -171,8 +183,59 @@ module adxl345 (
             end
 
             ADXL345_ENABLE_INTERRUPTS: begin
-                // TODO: For now just chill here
-                configured <= 1'b1;
+                // enable configured signal to show device is operational and
+                // that we suceeded in powering it on and reading the device ID
+
+                // Right now, this command enables no interrupts but we will
+                // change this later to pick up new samples only when they are
+                // ready
+                command_stream.tdata <= ADXL345_COMMAND_CONFIGURE_INT_ENABLE;
+                command_stream.tvalid <= 1'b1;
+                if (command_stream.tvalid && command_stream.tready) begin
+                    command_stream.tvalid <= 1'b0;
+
+                    state <= ADXL345_CONFIGURE_DATA_FORMAT;
+                end
+            end
+
+            ADXL345_CONFIGURE_DATA_FORMAT: begin
+                command_stream.tdata <= ADXL345_COMMAND_CONFIGURE_DATA_FORMAT;
+                command_stream.tvalid <= 1'b1;
+                if (command_stream.tvalid && command_stream.tready) begin
+                    command_stream.tvalid <= 1'b0;
+
+                    state <= ADXL345_CONFIGURE_FIFO_MODE;
+                end
+            end
+
+            ADXL345_CONFIGURE_FIFO_MODE: begin
+                command_stream.tdata <= ADXL345_COMMAND_CONFIGURE_FIFO_CTL;
+                command_stream.tvalid <= 1'b1;
+                if (command_stream.tvalid && command_stream.tready) begin
+                    command_stream.tvalid <= 1'b0;
+
+                    state <= ADXL345_READ_DATAX0;
+                end
+            end
+
+            ADXL345_READ_DATAX0: begin
+                // try a multi-byte read and write it out to the output stream
+
+                // command_stream.tdata <= ADXL345_COMMAND_READ_DATAX0;
+                // command_stream.tvalid <= 1'b1;
+                // if (command_stream.tvalid && command_stream.tready) begin
+                //     command_stream.tvalid <= 1'b0;
+
+                //     state <= ADXL345_READ_DATAX1;
+                // end
+            end
+
+            ADXL345_WRITE_ACCEL_DATA_STREAM: begin
+                accelerometer_data.tdata <= device_id;
+                accelerometer_data.tvalid <= 1'b1;
+                if (accelerometer_data.tvalid && accelerometer_data.tready) begin
+                    state <= ADXL345_READ_DATAX0;
+                end
             end
 
             ADXL345_CONFIGURATION_FAILED: begin
@@ -180,6 +243,15 @@ module adxl345 (
                 configured <= 1'b0;
             end
         endcase
+    end
+
+    always_comb begin
+        // Assign unused AXI Stream signals
+        accelerometer_data.tkeep = 1'b1;
+        accelerometer_data.tlast = 1'b1;
+        accelerometer_data.tid = 0;
+        accelerometer_data.tdest = 0;
+        accelerometer_data.tuser = 0;
     end
 
 endmodule

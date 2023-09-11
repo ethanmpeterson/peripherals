@@ -27,7 +27,8 @@ module peripherals (
     );
 
     uart arty_ftdi_bridge (
-        .tx_stream(internal.Sink),
+        // .tx_stream(internal.Sink),
+        .tx_stream(accelerometer_data.Sink),
         .rx_stream(internal.Source),
 
         .txd(ftdi_uart_tx),
@@ -35,7 +36,7 @@ module peripherals (
     ); 
 
     axis_interface #(
-        .DATA_WIDTH(64),
+        .DATA_WIDTH(8),
         .KEEP_WIDTH(1)
     ) accelerometer_data (
         .clk(ext_clk),
