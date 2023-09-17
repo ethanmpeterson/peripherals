@@ -84,7 +84,9 @@ module adxl345 (
         ADXL345_COMMAND_DEVID_READ = {REG_READ, 1'b0, REG_DEVID, {8{1'b0}}},
         ADXL345_COMMAND_CONFIGURE_DATA_FORMAT = {REG_WRITE, 1'b0, REG_DATA_FORMAT, 8'b0000_00_00},
         ADXL345_COMMAND_CONFIGURE_INT_ENABLE = {REG_WRITE, 1'b0, REG_INT_ENABLE, {8{1'b0}}},
-        ADXL345_COMMAND_CONFIGURE_FIFO_CTL = {REG_WRITE, 1'b0, REG_FIFO_CTL, 8'b0000_0000};
+        ADXL345_COMMAND_CONFIGURE_FIFO_CTL = {REG_WRITE, 1'b0, REG_FIFO_CTL, 8'b0000_0000},
+        ADXL345_COMMAND_READ_DATAX0 = {REG_READ, 1'b0, REG_DATAX0, {8{1'b0}}},
+        ADXL345_COMMAND_READ_DATAX1 = {REG_READ, 1'b0, REG_DATAX1, {8{1'b0}}};
 
         // TODO: configure offsets before reading actual data
 
@@ -104,6 +106,7 @@ module adxl345 (
         ADXL345_READ_DATAY0,
         ADXL345_READ_DATAY1,
 
+        ADXL345_WAIT_FOR_NEXT_READ,
         ADXL345_WRITE_ACCEL_DATA_STREAM,
 
         ADXL345_CONFIGURATION_FAILED
@@ -116,7 +119,10 @@ module adxl345 (
     var logic[15:0] ADXL345_COMMAND_ACCEL_READ;
 
     var logic[7:0] device_id;
-
+    var logic[15:0] accel_x;
+    
+    // count cycles to limit the rate at which we try to read the accelerometer
+    var logic[15:0] cycle_counter = 0;
     always_ff @(posedge accelerometer_data.clk) begin
         case(state)
             ADXL345_IDLE: begin
@@ -175,26 +181,10 @@ module adxl345 (
                         // state <= ADXL345_ENABLE_INTERRUPTS;
                         device_id <= response_stream.tdata[7:0];
                         configured <= 1'b1;
-                        state <= ADXL345_WRITE_ACCEL_DATA_STREAM;
+                        state <= ADXL345_CONFIGURE_DATA_FORMAT;
                     end else begin
                         state <= ADXL345_CONFIGURATION_FAILED;
                     end
-                end
-            end
-
-            ADXL345_ENABLE_INTERRUPTS: begin
-                // enable configured signal to show device is operational and
-                // that we suceeded in powering it on and reading the device ID
-
-                // Right now, this command enables no interrupts but we will
-                // change this later to pick up new samples only when they are
-                // ready
-                command_stream.tdata <= ADXL345_COMMAND_CONFIGURE_INT_ENABLE;
-                command_stream.tvalid <= 1'b1;
-                if (command_stream.tvalid && command_stream.tready) begin
-                    command_stream.tvalid <= 1'b0;
-
-                    state <= ADXL345_CONFIGURE_DATA_FORMAT;
                 end
             end
 
@@ -219,21 +209,63 @@ module adxl345 (
             end
 
             ADXL345_READ_DATAX0: begin
-                // try a multi-byte read and write it out to the output stream
+                // A better way to read the data would be to use the multi-byte
+                // read option but I do not currently support this in the SPI
+                // peripheral
 
-                // command_stream.tdata <= ADXL345_COMMAND_READ_DATAX0;
-                // command_stream.tvalid <= 1'b1;
-                // if (command_stream.tvalid && command_stream.tready) begin
-                //     command_stream.tvalid <= 1'b0;
+                // one way to make it work would be to inhibit the CS pin in the
+                // SPI master and consume the data one transfer at a time. The
+                // parent module needs to be smart about that though
+                command_stream.tdata <= ADXL345_COMMAND_READ_DATAX0;
+                command_stream.tvalid <= 1'b1;
+                response_stream.tready <= 1'b1;
+                if (command_stream.tvalid && command_stream.tready) begin
+                    command_stream.tvalid <= 1'b0;
+                end
 
-                //     state <= ADXL345_READ_DATAX1;
-                // end
+
+                if (response_stream.tvalid && response_stream.tready) begin
+                    response_stream.tready <= 1'b0;
+                    accel_x[7:0] <= response_stream.tdata[7:0];
+
+                    state <= ADXL345_READ_DATAX1;
+                end
+            end
+
+            ADXL345_READ_DATAX1: begin
+
+                command_stream.tdata <= ADXL345_COMMAND_READ_DATAX1;
+                command_stream.tvalid <= 1'b1;
+                response_stream.tready <= 1'b1;
+                if (command_stream.tvalid && command_stream.tready) begin
+                    command_stream.tvalid <= 1'b0;
+                end
+
+
+                if (response_stream.tvalid && response_stream.tready) begin
+                    response_stream.tready <= 1'b0;
+                    accel_x[15:8] <= response_stream.tdata[7:0];
+
+                    state <= ADXL345_WAIT_FOR_NEXT_READ;
+                end
+            end
+
+            ADXL345_WAIT_FOR_NEXT_READ: begin
+                cycle_counter <= cycle_counter + 1;
+                if (cycle_counter == 2000) begin
+                    // 50 Hz read rate
+                    cycle_counter <= 0;
+
+                    state <= ADXL345_WRITE_ACCEL_DATA_STREAM;
+                end
             end
 
             ADXL345_WRITE_ACCEL_DATA_STREAM: begin
-                accelerometer_data.tdata <= device_id;
+                accelerometer_data.tdata <= accel_x;
                 accelerometer_data.tvalid <= 1'b1;
                 if (accelerometer_data.tvalid && accelerometer_data.tready) begin
+                    accelerometer_data.tvalid <= 1'b0;
+
                     state <= ADXL345_READ_DATAX0;
                 end
             end
