@@ -27,8 +27,7 @@ module peripherals (
     );
 
     uart arty_ftdi_bridge (
-        // .tx_stream(internal.Sink),
-        .tx_stream(accelerometer_data.Sink),
+        .tx_stream(cobs_stream.Sink),
         .rx_stream(internal.Source),
 
         .txd(ftdi_uart_tx),
@@ -37,7 +36,7 @@ module peripherals (
 
     axis_interface #(
         .DATA_WIDTH(48),
-        .KEEP_WIDTH(1)
+        .KEEP_ENABLE(1)
     ) accelerometer_data (
         .clk(ext_clk),
         .reset(system_reset)
@@ -58,6 +57,19 @@ module peripherals (
         .reset(system_reset),
         .spi_bus(accel_spi_bus.Master),
         .accelerometer_data(accelerometer_data)
+    );
+
+    axis_interface #(
+        .DATA_WIDTH(8),
+        .KEEP_ENABLE(1)
+    ) cobs_stream (
+        .clk(ext_clk),
+        .reset(system_reset)
+    );
+
+    axis_adapter_cobs_encoder cobs_encoder (
+        .data_stream(accelerometer_data.Sink),
+        .cobs_encoded_stream(cobs_stream.Source)
     );
 
 endmodule

@@ -208,9 +208,14 @@ module adxl345 (
             ADXL345_CONFIGURE_FIFO_MODE: begin
                 command_stream.tdata <= ADXL345_COMMAND_CONFIGURE_FIFO_CTL;
                 command_stream.tvalid <= 1'b1;
+                response_stream.tready <= 1'b1;
                 if (command_stream.tvalid && command_stream.tready) begin
                     command_stream.tvalid <= 1'b0;
 
+                end
+                
+                // clear any responseses
+                if (!response_stream.tvalid && response_stream.tready) begin
                     state <= ADXL345_READ_DATAX0;
                 end
             end
@@ -357,7 +362,7 @@ module adxl345 (
 
     always_comb begin
         // Assign unused AXI Stream signals
-        accelerometer_data.tkeep = 1'b1;
+        accelerometer_data.tkeep = 6'b111_111;
         accelerometer_data.tlast = 1'b1;
         accelerometer_data.tid = 0;
         accelerometer_data.tdest = 0;
