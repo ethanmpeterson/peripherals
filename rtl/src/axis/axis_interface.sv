@@ -7,9 +7,17 @@
 
 interface axis_interface #(
     parameter DATA_WIDTH = 8,
+
+    parameter KEEP_ENABLE = 0,
     parameter KEEP_WIDTH = ((DATA_WIDTH+7)/8),
+
+    parameter ID_ENABLE = 1,
     parameter ID_WIDTH = 8,
+
+    parameter DEST_ENABLE = 1,
     parameter DEST_WIDTH = 8,
+
+    parameter USER_ENABLE = 1,
     parameter USER_WIDTH = 1
 ) (
     input var logic clk,
