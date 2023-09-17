@@ -226,7 +226,7 @@ module adxl345 (
 
                 if (response_stream.tvalid && response_stream.tready) begin
                     response_stream.tready <= 1'b0;
-                    accel_x[7:0] <= response_stream.tdata[7:0];
+                    accel_x[15:8] <= response_stream.tdata[7:0];
 
                     state <= ADXL345_READ_DATAX1;
                 end
@@ -244,7 +244,7 @@ module adxl345 (
 
                 if (response_stream.tvalid && response_stream.tready) begin
                     response_stream.tready <= 1'b0;
-                    accel_x[15:8] <= response_stream.tdata[7:0];
+                    accel_x[7:0] <= response_stream.tdata[7:0];
 
                     state <= ADXL345_WAIT_FOR_NEXT_READ;
                 end
