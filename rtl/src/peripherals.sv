@@ -36,7 +36,7 @@ module peripherals (
     ); 
 
     axis_interface #(
-        .DATA_WIDTH(16),
+        .DATA_WIDTH(48),
         .KEEP_WIDTH(1)
     ) accelerometer_data (
         .clk(ext_clk),
