@@ -1,7 +1,7 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-module axis_cobs_encode_wrapper (
+module axis_adapter_cobs_encoder (
     // clocks should be shared between these two interfaces
     
     // They must also both be 8-bit streams
