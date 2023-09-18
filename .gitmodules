@@ -1,3 +1,6 @@
 [submodule "submodules/verilog-axis"]
 	path = submodules/verilog-axis
 	url = https://github.com/alexforencich/verilog-axis
+[submodule "submodules/verilog-ethernet"]
+	path = submodules/verilog-ethernet
+	url = https://github.com/alexforencich/verilog-ethernet
