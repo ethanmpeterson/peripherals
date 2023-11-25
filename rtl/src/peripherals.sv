@@ -151,8 +151,6 @@ module peripherals (
         .status(mac_status),
         .cfg(mac_config)
     );
-    // Use example commands to understand the link status of the PHY with your computer here:
-    // https://www.cyberciti.biz/faq/linux-list-network-interfaces-names-command/
 
 endmodule
 
