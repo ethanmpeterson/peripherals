@@ -14,7 +14,26 @@ module peripherals (
     output var logic accel_pmod_mosi,
     output var logic accel_pmod_sck,
 
-    input var logic accel_pmod_miso
+    input var logic accel_pmod_miso,
+
+    // ETH PHY IO
+    input var logic eth_col,
+    input var logic eth_crs,
+
+    output var logic eth_mdc,
+    output var logic eth_mdio,
+
+    input var logic eth_ref_clk,
+    output var logic eth_rstn,
+
+    input var logic eth_rx_clk,
+    input var logic eth_rx_dv,
+    input var logic[3:0] eth_rx,
+    input var logic[3:0] eth_rxerr,
+
+    input var logic eth_tx_clk,
+    output var logic eth_tx_en,
+    output var logic[3:0] eth_txd
 );
 
     // global reset signal propagated down into all submodules assertion has the
