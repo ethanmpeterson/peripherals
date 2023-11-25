@@ -32,7 +32,7 @@ module peripherals (
 
         .txd(ftdi_uart_tx),
         .rxd(ftdi_uart_rx)
-    ); 
+    );
 
     axis_interface #(
         .DATA_WIDTH(48),
@@ -46,7 +46,7 @@ module peripherals (
         .CS_COUNT(1)
     ) accel_spi_bus ();
 
-    // connect the spi signals to FPGA I/O 
+    // connect the spi signals to FPGA I/O
     assign accel_pmod_cs = accel_spi_bus.cs;
     assign accel_pmod_mosi = accel_spi_bus.mosi;
     assign accel_pmod_sck = accel_spi_bus.sck;
