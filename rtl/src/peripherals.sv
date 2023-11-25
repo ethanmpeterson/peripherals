@@ -28,8 +28,8 @@ module peripherals (
 
     input var logic eth_rx_clk,
     input var logic eth_rx_dv,
-    input var logic[3:0] eth_rx,
-    input var logic[3:0] eth_rxerr,
+    input var logic[3:0] eth_rxd,
+    input var logic eth_rxerr,
 
     input var logic eth_tx_clk,
     output var logic eth_tx_en,
@@ -89,6 +89,47 @@ module peripherals (
     axis_adapter_cobs_encoder cobs_encoder (
         .data_stream(accelerometer_data.Sink),
         .cobs_encoded_stream(cobs_stream.Source)
+    );
+
+    // ethernet Mac test instance
+    // Use default 8 bit interface
+    axis_interface #(
+        .DATA_WIDTH(8),
+        .KEEP_ENABLE(1)
+    ) eth_mac_sink (
+        .clk(ext_clk),
+        .reset(system_reset)
+    );
+
+    axis_interface #(
+        .DATA_WIDTH(8),
+        .KEEP_ENABLE(1)
+    ) eth_mac_src (
+        .clk(ext_clk),
+        .reset(system_reset)
+    );
+
+    mii_interface mii_signals ();
+
+    always_comb begin
+        mii_signals.rx_clk = eth_rx_clk;
+        mii_signals.rxd = eth_rxd;
+        mii_signals.rx_dv = eth_rx_dv;
+        mii_signals.rx_er = eth_rxerr;
+
+        mii_signals.tx_clk = eth_tx_clk;
+        eth_txd = mii_signals.txd;
+        eth_tx_en = mii_signals.tx_en;
+    end
+
+    eth_mac_cfg_interface mac_config ();
+    eth_mac_status_interface mac_status ();
+    eth_mac_mii_fifo_wrapper eth_ti_phy_mac (
+        .sink(eth_mac_sink),
+        .source(eth_mac_src),
+        .phy_mii(mii_signals.Mac),
+        .status(mac_status),
+        .cfg(mac_config)
     );
 
 endmodule
