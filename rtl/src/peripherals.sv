@@ -23,7 +23,7 @@ module peripherals (
     output var logic eth_mdc,
     output var logic eth_mdio,
 
-    input var logic eth_ref_clk,
+    output var logic eth_ref_clk,
     output var logic eth_rstn,
 
     input var logic eth_rx_clk,
@@ -35,6 +35,17 @@ module peripherals (
     output var logic eth_tx_en,
     output var logic[3:0] eth_txd
 );
+    assign eth_rstn = 1'b1;
+    // Configure PHY clocks generates a 25 MHz clock for the PHY
+    eth_phy_clk phy_clk_div (
+        // Clock out ports
+        .eth_ref_clk(eth_ref_clk),     // output eth_ref_clk
+        // Status and control signals
+        .reset(1'b0), // input reset
+        .locked(),       // output locked
+        // Clock in ports
+        .ext_clk(ext_clk)      // input ext_clk
+    );
 
     // global reset signal propagated down into all submodules assertion has the
     // effect of resetting the entire design
@@ -140,6 +151,8 @@ module peripherals (
         .status(mac_status),
         .cfg(mac_config)
     );
+    // Use example commands to understand the link status of the PHY with your computer here:
+    // https://www.cyberciti.biz/faq/linux-list-network-interfaces-names-command/
 
 endmodule
 
