@@ -60,7 +60,7 @@ module eth_mac_mii_fifo_wrapper #(
         .mii_tx_clk(phy_mii.tx_clk),
         .mii_txd(phy_mii.txd),
         .mii_tx_en(phy_mii.tx_en),
-        .mii_tx_er(phy_mii.tx_er)
+        .mii_tx_er(phy_mii.tx_er),
 
         .tx_error_underflow(status.tx_error_underflow),
         .tx_fifo_overflow(status.tx_fifo_overflow),
