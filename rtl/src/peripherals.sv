@@ -101,6 +101,15 @@ module peripherals (
         .reset(system_reset)
     );
 
+    var logic [7:0] counter = 0;
+    always @(posedge ext_clk) begin
+        eth_mac_sink.tvalid <= 1'b1;
+        eth_mac_sink.tdata <= counter;
+        if (eth_mac_sink.tready && eth_mac_sink.tvalid) begin
+            counter <= counter + 1;
+        end
+    end
+
     axis_interface #(
         .DATA_WIDTH(8),
         .KEEP_ENABLE(1)
