@@ -47,6 +47,17 @@ module peripherals (
         .ext_clk(ext_clk)      // input ext_clk
     );
 
+    var logic udp_sys_clk;
+    udp_clock_generator udp_clock_div (
+        // Clock out ports
+        .udp_sys_clk(udp_sys_clk),     // output udp_sys_clk
+        // Status and control signals
+        .reset(1'b0), // input reset
+        .locked(),       // output locked
+        // Clock in ports
+        .ext_clk(ext_clk)      // input ext_clk
+    );
+
     // global reset signal propagated down into all submodules assertion has the
     // effect of resetting the entire design
     var logic system_reset = 0;
@@ -108,24 +119,23 @@ module peripherals (
         .DATA_WIDTH(8),
         .KEEP_ENABLE(1)
     ) eth_mac_sink (
-        .clk(ext_clk),
+        .clk(udp_sys_clk),
         .reset(system_reset)
     );
-
-    var logic [7:0] counter = 0;
-    always @(posedge ext_clk) begin
-        eth_mac_sink.tvalid <= 1'b1;
-        eth_mac_sink.tdata <= counter;
-        if (eth_mac_sink.tready && eth_mac_sink.tvalid) begin
-            counter <= counter + 1;
-        end
-    end
 
     axis_interface #(
         .DATA_WIDTH(8),
         .KEEP_ENABLE(1)
     ) eth_mac_src (
-        .clk(ext_clk),
+        .clk(udp_sys_clk),
+        .reset(system_reset)
+    );
+
+    axis_interface #(
+        .DATA_WIDTH(8),
+        .KEEP_ENABLE(1)
+    ) loopback_test_stream (
+        .clk(eth_ref_clk),
         .reset(system_reset)
     );
 
@@ -145,13 +155,25 @@ module peripherals (
     eth_mac_cfg_interface mac_config ();
     eth_mac_status_interface mac_status ();
     eth_mac_mii_fifo_wrapper eth_ti_phy_mac (
-        .sink(eth_mac_sink),
-        .source(eth_mac_src),
+        .sink(loopback_test_stream),
+        .source(loopback_test_stream),
+
         .phy_mii(mii_signals.Mac),
+
         .status(mac_status),
         .cfg(mac_config)
     );
 
+    // udp_configuration_interface udp_conf ();
+    // udp_loopback_server loopback_server (
+    //     .sys_clk(udp_sys_clk), // 125 MHz clock
+    //     .system_reset(system_reset),
+
+    //     .mii_rx_stream(eth_mac_src),
+    //     .mii_tx_stream(eth_mac_sink),
+
+    //     .udp_configuration(udp_conf)
+    // );
 endmodule
 
 `default_nettype wire
