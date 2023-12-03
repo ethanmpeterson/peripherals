@@ -30,7 +30,10 @@ module eth_mac_mii_fifo_wrapper #(
         .AXIS_KEEP_WIDTH(AXIS_KEEP_WIDTH),
 
         .TX_FIFO_DEPTH(TX_FIFO_DEPTH),
-        .RX_FIFO_DEPTH(RX_FIFO_DEPTH)
+        .RX_FIFO_DEPTH(RX_FIFO_DEPTH),
+
+        .RX_FRAME_FIFO(1),
+        .TX_FRAME_FIFO(1)
     ) wrapped_mac (
         // assumed that source and sink interfaces have the same reset signal
         // and the same clock

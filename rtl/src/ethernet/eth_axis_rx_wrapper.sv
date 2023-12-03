@@ -7,7 +7,7 @@ module eth_axis_rx_wrapper #(
     parameter KEEP_WIDTH = 1
 ) (
     // raw packet input
-    axis_interface.Sink packet_stream,
+    axis_interface.Sink mii_stream,
 
     // ethernet encoded frame output
     eth_axis_interface.Source eth_stream,
@@ -20,8 +20,16 @@ module eth_axis_rx_wrapper #(
         .KEEP_ENABLE(KEEP_ENABLE),
         .KEEP_WIDTH(KEEP_WIDTH)
     ) eth_axis_rx_inst (
-        .clk(packet_stream.clk),
-        .rst(packet_stream.reset),
+        // clocked with the MII PHY
+        .clk(mii_stream.clk),
+        .rst(mii_stream.reset),
+
+        .s_axis_tdata(mii_stream.tdata),
+        .s_axis_tkeep(mii_stream.tkeep),
+        .s_axis_tvalid(mii_stream.tvalid),
+        .s_axis_tready(mii_stream.tready),
+        .s_axis_tlast(mii_stream.tlast),
+        .s_axis_tuser(mii_stream.tuser),
 
         .m_eth_hdr_valid(eth_stream.hdr_valid),
         .m_eth_hdr_ready(eth_stream.hdr_ready),

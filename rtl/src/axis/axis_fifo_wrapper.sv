@@ -21,16 +21,16 @@ module axis_fifo_wrapper #(
     parameter DROP_WHEN_FULL = 0
 ) (
     // NOTE: This is a synchronous FIFO. both streams need to share the same
-    // clock signal    
+    // clock signal
 
     // AXI Stream Input
     axis_interface.Sink sink,
-    
+
     // AXI Stream Output
     axis_interface.Source source,
 
     // FIFO status interface
-    axis_fifo_status_interface status 
+    axis_fifo_status_interface status
 );
     axis_fifo #(
         .DEPTH(DEPTH),

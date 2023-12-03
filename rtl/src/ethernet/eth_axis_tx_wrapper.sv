@@ -7,9 +7,9 @@ module eth_axis_tx_wrapper #(
     parameter KEEP_WIDTH = 1
 ) (
     eth_axis_interface.Sink eth_stream,
-    
-    // axis stream of decoded ethernet packets
-    axis_interface.Source decoded_stream,
+
+    // MII encoded ethernet packets
+    axis_interface.Source mii_stream,
 
     output var logic busy
 );
@@ -18,8 +18,15 @@ module eth_axis_tx_wrapper #(
         .KEEP_ENABLE(KEEP_ENABLE),
         .KEEP_WIDTH(KEEP_WIDTH)
     ) eth_axis_tx_inst (
-        .clk(decoded_stream.clk),
-        .rst(decoded_stream.reset),
+        .clk(mii_stream.clk),
+        .rst(mii_stream.reset),
+
+        .m_axis_tdata(mii_stream.tdata),
+        .m_axis_tkeep(mii_stream.tkeep),
+        .m_axis_tvalid(mii_stream.tvalid),
+        .m_axis_tready(mii_stream.tready),
+        .m_axis_tlast(mii_stream.tlast),
+        .m_axis_tuser(mii_stream.tuser),
 
         .s_eth_hdr_valid(eth_stream.hdr_valid),
         .s_eth_hdr_ready(eth_stream.hdr_ready),
