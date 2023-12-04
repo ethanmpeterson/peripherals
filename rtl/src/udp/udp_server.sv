@@ -48,17 +48,19 @@ module udp_loopback_server (
     eth_axis_interface eth_packet_sink ();
     eth_axis_interface eth_packet_source ();
 
+    eth_axis_interface eth_packet_loopback_stream ();
+
     eth_axis_rx_wrapper eth_axis_rx_inst (
         .mii_stream(mii_rx_stream),
-        .eth_stream(eth_packet_source.Source),
+        .eth_stream(eth_packet_loopback_stream),
 
         .busy(),
         .error_header_early_termination()
-        );
+    );
 
     eth_axis_tx_wrapper eth_axis_tx_inst (
         .mii_stream(mii_tx_stream),
-        .eth_stream(eth_packet_sink.Sink),
+        .eth_stream(eth_packet_loopback_stream),
 
         .busy()
     );
@@ -91,7 +93,7 @@ module udp_loopback_server (
         .status(loopback_fifo_status)
     );
 
-    udp_complete udp_complete_wrapped (
+    udp_complete udp_complete_inst (
         // assuming it has the same clock as rx
         .clk(udp_tx_payload_stream.clk),
         .rst(udp_tx_payload_stream.reset),

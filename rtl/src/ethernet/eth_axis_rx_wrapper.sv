@@ -6,11 +6,10 @@ module eth_axis_rx_wrapper #(
     parameter KEEP_ENABLE = 0,
     parameter KEEP_WIDTH = 1
 ) (
-    // raw packet input
-    axis_interface.Sink mii_stream,
+    axis_interface.Sink axis_mii_stream_in,
 
-    // ethernet encoded frame output
-    eth_axis_interface.Source eth_stream,
+    axis_interface.Source axis_eth_out,
+    eth_interface.Source eth_out,
 
     output var logic busy,
     output var logic error_header_early_termination
@@ -21,30 +20,40 @@ module eth_axis_rx_wrapper #(
         .KEEP_WIDTH(KEEP_WIDTH)
     ) eth_axis_rx_inst (
         // clocked with the MII PHY
-        .clk(mii_stream.clk),
-        .rst(mii_stream.reset),
+        .clk(axis_mii_stream_in.clk),
+        .rst(axis_mii_stream_in.reset),
 
-        .s_axis_tdata(mii_stream.tdata),
-        .s_axis_tkeep(mii_stream.tkeep),
-        .s_axis_tvalid(mii_stream.tvalid),
-        .s_axis_tready(mii_stream.tready),
-        .s_axis_tlast(mii_stream.tlast),
-        .s_axis_tuser(mii_stream.tuser),
+        .s_axis_tdata(axis_mii_stream_in.tdata),
+        .s_axis_tkeep(axis_mii_stream_in.tkeep),
+        .s_axis_tvalid(axis_mii_stream_in.tvalid),
+        .s_axis_tready(axis_mii_stream_in.tready),
+        .s_axis_tlast(axis_mii_stream_in.tlast),
+        .s_axis_tuser(axis_mii_stream_in.tuser),
 
-        .m_eth_hdr_valid(eth_stream.hdr_valid),
-        .m_eth_hdr_ready(eth_stream.hdr_ready),
-        .m_eth_dest_mac(eth_stream.dest_mac),
-        .m_eth_src_mac(eth_stream.src_mac),
-        .m_eth_type(eth_stream.eth_type),
-        .m_eth_payload_axis_tdata(eth_stream.tdata),
-        .m_eth_payload_axis_tkeep(eth_stream.tkeep),
-        .m_eth_payload_axis_tvalid(eth_stream.tvalid),
-        .m_eth_payload_axis_tready(eth_stream.tready),
-        .m_eth_payload_axis_tlast(eth_stream.tlast),
-        .m_eth_payload_axis_tuser(eth_stream.tuser),
+        .m_eth_hdr_valid(eth_out.hdr_valid),
+        .m_eth_hdr_ready(eth_out.hdr_ready),
+        .m_eth_dest_mac(eth_out.dest_mac),
+        .m_eth_src_mac(eth_out.src_mac),
+        .m_eth_type(eth_out.eth_type),
+        .m_eth_payload_axis_tdata(axis_eth_out.tdata),
+        .m_eth_payload_axis_tkeep(axis_eth_out.tkeep),
+        .m_eth_payload_axis_tvalid(axis_eth_out.tvalid),
+        .m_eth_payload_axis_tready(axis_eth_out.tready),
+        .m_eth_payload_axis_tlast(axis_eth_out.tlast),
+        .m_eth_payload_axis_tuser(axis_eth_out.tuser),
 
         .busy(busy),
         .error_header_early_termination(error_header_early_termination)
+    );
+
+    ila_eth_axis ila_eth_axis_inst (
+	      .clk(axis_eth_out.clk), // input wire clk
+
+
+	      .probe0(axis_eth_out.tdata), // input wire [7:0]  probe0
+	      .probe1(axis_eth_out.tvalid), // input wire [0:0]  probe1
+	      .probe2(axis_eth_out.tready), // input wire [0:0]  probe2
+	      .probe3(axis_eth_out.tlast) // input wire [0:0]  probe3
     );
 
 endmodule

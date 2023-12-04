@@ -5,12 +5,12 @@ interface eth_axis_interface ();
     var logic hdr_valid;
     var logic hdr_ready;
 
-    var logic dest_mac;
-    var logic src_mac;
+    var logic[47:0] dest_mac;
+    var logic[47:0] src_mac;
 
-    var logic eth_type;
+    var logic[15:0] eth_type;
 
-    var logic tdata;
+    var logic[7:0] tdata;
     var logic tkeep;
     var logic tvalid;
     var logic tready;
