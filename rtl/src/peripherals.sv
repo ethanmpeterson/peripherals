@@ -113,34 +113,107 @@ module peripherals (
         .cobs_encoded_stream(cobs_stream.Source)
     );
 
-    // ethernet Mac test instance
-    // Use default 8 bit interface
-    axis_interface #(
-        .DATA_WIDTH(8),
-        .KEEP_ENABLE(1)
-    ) eth_mac_sink (
-        .clk(udp_sys_clk),
-        .reset(system_reset)
-    );
-
-    axis_interface #(
-        .DATA_WIDTH(8),
-        .KEEP_ENABLE(1)
-    ) eth_mac_src (
-        .clk(udp_sys_clk),
-        .reset(system_reset)
-    );
 
     axis_interface #(
         .DATA_WIDTH(8),
         .KEEP_ENABLE(1)
     ) loopback_test_stream (
-        .clk(eth_ref_clk),
+        .clk(udp_sys_clk),
         .reset(system_reset)
     );
 
-    mii_interface mii_signals ();
+    // AXI between MAC and Ethernet modules
+    // var logic [7:0] rx_axis_tdata;
+    // var logic rx_axis_tvalid;
+    // var logic rx_axis_tready;
+    // var logic rx_axis_tlast;
+    // var logic rx_axis_tuser;
 
+    // eth_mac_mii_fifo #(
+    //     .TARGET("XILINX"),
+    //     .CLOCK_INPUT_STYLE("BUFR"),
+    //     .ENABLE_PADDING(1),
+    //     .MIN_FRAME_LENGTH(64),
+    //     .TX_FIFO_DEPTH(4096),
+    //     .TX_FRAME_FIFO(1),
+    //     .RX_FIFO_DEPTH(4096),
+    //     .RX_FRAME_FIFO(1)
+    // )
+    // eth_mac_inst (
+    //     .rst(system_reset),
+    //     .logic_clk(eth_ref_clk),
+    //     .logic_rst(system_reset),
+
+    //     .tx_axis_tdata(rx_axis_tdata),
+    //     .tx_axis_tvalid(rx_axis_tvalid),
+    //     .tx_axis_tready(rx_axis_tready),
+    //     .tx_axis_tlast(rx_axis_tlast),
+    //     .tx_axis_tuser(rx_axis_tuser),
+
+    //     .rx_axis_tdata(rx_axis_tdata),
+    //     .rx_axis_tvalid(rx_axis_tvalid),
+    //     .rx_axis_tready(rx_axis_tready),
+    //     .rx_axis_tlast(rx_axis_tlast),
+    //     .rx_axis_tuser(rx_axis_tuser),
+
+    //     .mii_rx_clk(eth_rx_clk),
+    //     .mii_rxd(eth_rxd),
+    //     .mii_rx_dv(eth_rx_dv),
+    //     .mii_rx_er(eth_rxerr),
+    //     .mii_tx_clk(eth_tx_clk),
+    //     .mii_txd(eth_txd),
+    //     .mii_tx_en(eth_tx_en),
+    //     .mii_tx_er(),
+
+    //     .tx_fifo_overflow(),
+    //     .tx_fifo_bad_frame(),
+    //     .tx_fifo_good_frame(),
+    //     .rx_error_bad_frame(),
+    //     .rx_error_bad_fcs(),
+    //     .rx_fifo_overflow(),
+    //     .rx_fifo_bad_frame(),
+    //     .rx_fifo_good_frame(),
+
+    //     .cfg_ifg(8'd12),
+    //     .cfg_tx_enable(1'b1),
+    //     .cfg_rx_enable(1'b1)
+    // );
+
+    // ila_mii ila_mii_inst (
+	  //     .clk(eth_rx_clk), // input wire clk
+
+
+	  //     .probe0(eth_rxd), // input wire [3:0]  probe0  
+	  //     .probe1(eth_rx_dv), // input wire [0:0]  probe1 
+	  //     .probe2(eth_rxerr) // input wire [0:0]  probe2
+    // );
+
+    // ethernet Mac test instance
+    // Use default 8 bit interface
+    axis_interface axis_mii_rx_stream (
+        .clk(udp_sys_clk),
+        .reset(system_reset)
+    );
+
+    axis_interface axis_mii_tx_stream (
+        .clk(udp_sys_clk),
+        .reset(system_reset)
+        );
+
+    axis_interface axis_eth_out (
+        .clk(udp_sys_clk),
+        .reset(system_reset)
+    );
+    eth_interface eth_out ();
+
+
+    axis_interface axis_eth_in (
+        .clk(udp_sys_clk),
+        .reset(system_reset)
+    );
+    eth_interface eth_in ();
+
+    mii_interface mii_signals ();
     always_comb begin
         mii_signals.rx_clk = eth_rx_clk;
         mii_signals.rxd = eth_rxd;
@@ -152,11 +225,12 @@ module peripherals (
         eth_tx_en = mii_signals.tx_en;
     end
 
+
     eth_mac_cfg_interface mac_config ();
     eth_mac_status_interface mac_status ();
     eth_mac_mii_fifo_wrapper eth_ti_phy_mac (
-        .sink(loopback_test_stream),
-        .source(loopback_test_stream),
+        .axis_mii_in(axis_mii_tx_stream),
+        .axis_mii_out(axis_mii_rx_stream),
 
         .phy_mii(mii_signals.Mac),
 
@@ -164,7 +238,47 @@ module peripherals (
         .cfg(mac_config)
     );
 
-    // udp_configuration_interface udp_conf ();
+    eth_axis_rx_wrapper eth_axis_rx_wrapper_inst (
+        .axis_mii_stream_in(axis_mii_rx_stream),
+
+        .axis_eth_out(axis_eth_out),
+        .eth_out(eth_out),
+
+        .busy(),
+        .error_header_early_termination()
+        );
+
+    // configure loopback through the wrappers
+    eth_axis_tx_wrapper eth_axis_tx_wrapper_inst (
+        .axis_mii_stream_out(axis_mii_tx_stream),
+
+        .axis_eth_in(axis_eth_in),
+        .eth_in(eth_in),
+
+        .busy()
+    );
+
+
+    axis_interface axis_payload_loopback (
+        .clk(udp_sys_clk),
+        .reset(system_reset)
+    );
+
+    udp_configuration_interface udp_conf ();
+    udp_complete_wrapper udp_server (
+        .axis_udp_payload_in(axis_payload_loopback),
+        .axis_udp_payload_out(axis_payload_loopback),
+
+        // cross over input output
+        .axis_eth_in(axis_eth_out),
+        .eth_in(eth_out),
+
+        .axis_eth_out(axis_eth_in),
+        .eth_out(eth_in),
+
+        .udp_configuration(udp_conf)
+    );
+
     // udp_loopback_server loopback_server (
     //     .sys_clk(udp_sys_clk), // 125 MHz clock
     //     .system_reset(system_reset),

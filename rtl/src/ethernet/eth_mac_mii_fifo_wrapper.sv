@@ -10,11 +10,11 @@ module eth_mac_mii_fifo_wrapper #(
     parameter AXIS_KEEP_ENABLE = 0,
     parameter AXIS_KEEP_WIDTH = 1,
 
-    parameter TX_FIFO_DEPTH = 1024,
-    parameter RX_FIFO_DEPTH = 1024
+    parameter TX_FIFO_DEPTH = 4096,
+    parameter RX_FIFO_DEPTH = 4096
 ) (
-    axis_interface.Sink sink,
-    axis_interface.Source source,
+    axis_interface.Sink axis_mii_in,
+    axis_interface.Source axis_mii_out,
 
     mii_interface.Mac phy_mii,
 
@@ -37,24 +37,24 @@ module eth_mac_mii_fifo_wrapper #(
     ) wrapped_mac (
         // assumed that source and sink interfaces have the same reset signal
         // and the same clock
-        .rst(sink.reset),
-        .logic_rst(sink.reset),
+        .rst(axis_mii_in.reset),
+        .logic_rst(axis_mii_in.reset),
 
-        .logic_clk(sink.clk),
+        .logic_clk(axis_mii_in.clk),
 
-        .tx_axis_tdata(sink.tdata),
-        .tx_axis_tkeep(sink.tkeep),
-        .tx_axis_tvalid(sink.tvalid),
-        .tx_axis_tready(sink.tready),
-        .tx_axis_tlast(sink.tlast),
-        .tx_axis_tuser(sink.tuser),
+        .tx_axis_tdata(axis_mii_in.tdata),
+        .tx_axis_tkeep(axis_mii_in.tkeep),
+        .tx_axis_tvalid(axis_mii_in.tvalid),
+        .tx_axis_tready(axis_mii_in.tready),
+        .tx_axis_tlast(axis_mii_in.tlast),
+        .tx_axis_tuser(axis_mii_in.tuser),
 
-        .rx_axis_tdata(source.tdata),
-        .rx_axis_tkeep(source.tkeep),
-        .rx_axis_tvalid(source.tvalid),
-        .rx_axis_tready(source.tready),
-        .rx_axis_tlast(source.tlast),
-        .rx_axis_tuser(source.tuser),
+        .rx_axis_tdata(axis_mii_out.tdata),
+        .rx_axis_tkeep(axis_mii_out.tkeep),
+        .rx_axis_tvalid(axis_mii_out.tvalid),
+        .rx_axis_tready(axis_mii_out.tready),
+        .rx_axis_tlast(axis_mii_out.tlast),
+        .rx_axis_tuser(axis_mii_out.tuser),
 
         .mii_rx_clk(phy_mii.rx_clk),
         .mii_rxd(phy_mii.rxd),
@@ -80,6 +80,23 @@ module eth_mac_mii_fifo_wrapper #(
         .cfg_rx_enable(cfg.rx_enable)
     );
 
+    ila_eth_axis ila_mii_rx_fifo (
+	      .clk(axis_mii_out.clk), // input wire clk
+
+	      .probe0(axis_mii_out.tdata), // input wire [7:0]  probe0
+	      .probe1(axis_mii_out.tvalid), // input wire [0:0]  probe1
+	      .probe2(axis_mii_out.tready), // input wire [0:0]  probe2
+	      .probe3(axis_mii_out.tlast) // input wire [0:0]  probe3
+    );
+
+    ila_eth_axis ila_mii_tx_fifo (
+	      .clk(axis_mii_in.clk), // input wire clk
+
+	      .probe0(axis_mii_in.tdata), // input wire [7:0]  probe0
+	      .probe1(axis_mii_in.tvalid), // input wire [0:0]  probe1
+	      .probe2(axis_mii_in.tready), // input wire [0:0]  probe2
+	      .probe3(axis_mii_in.tlast) // input wire [0:0]  probe3
+    );
 endmodule
 
 `default_nettype wire
