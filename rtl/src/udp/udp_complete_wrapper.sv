@@ -17,31 +17,10 @@ module udp_complete_wrapper (
 
     var logic                       rx_udp_hdr_valid;
     var logic                       rx_udp_hdr_ready;
-    var logic [47:0]                rx_udp_eth_dest_mac;
-    var logic [47:0]                rx_udp_eth_src_mac;
-    var logic [15:0]                rx_udp_eth_type;
-    var logic [3:0]                 rx_udp_ip_version;
-    var logic [3:0]                 rx_udp_ip_ihl;
-    var logic [5:0]                 rx_udp_ip_dscp;
-    var logic [1:0]                 rx_udp_ip_ecn;
-    var logic [15:0]                rx_udp_ip_length;
-    var logic [15:0]                rx_udp_ip_identification;
-    var logic [2:0]                 rx_udp_ip_flags;
-    var logic [12:0]                rx_udp_ip_fragment_offset;
-    var logic [7:0]                 rx_udp_ip_ttl;
-    var logic [7:0]                 rx_udp_ip_protocol;
-    var logic [15:0]                rx_udp_ip_header_checksum;
     var logic [31:0]                rx_udp_ip_source_ip;
-    var logic [31:0]                rx_udp_ip_dest_ip;
     var logic [15:0]                rx_udp_source_port;
     var logic [15:0]                rx_udp_dest_port;
     var logic [15:0]                rx_udp_length;
-    var logic [15:0]                rx_udp_checksum;
-    var logic [7:0]                 rx_udp_payload_axis_tdata;
-    var logic                       rx_udp_payload_axis_tvalid;
-    var logic                       rx_udp_payload_axis_tready;
-    var logic                       rx_udp_payload_axis_tlast;
-    var logic                       rx_udp_payload_axis_tuser;
 
     udp_complete udp_complete_inst (
         // assuming it has the same clock as rx

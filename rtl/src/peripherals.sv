@@ -279,15 +279,6 @@ module peripherals (
         .udp_configuration(udp_conf)
     );
 
-    // udp_loopback_server loopback_server (
-    //     .sys_clk(udp_sys_clk), // 125 MHz clock
-    //     .system_reset(system_reset),
-
-    //     .mii_rx_stream(eth_mac_src),
-    //     .mii_tx_stream(eth_mac_sink),
-
-    //     .udp_configuration(udp_conf)
-    // );
 endmodule
 
 `default_nettype wire
