@@ -216,6 +216,27 @@ set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 SLEW FAST DRIVE 12} [
 set_false_path -to [get_ports {eth_ref_clk phy_rst_n}]
 set_output_delay 0 [get_ports {eth_ref_clk eth_rst_n}]
 
+# MII clock constraints
+
+set input_clock     eth_rx_clk;
+set tco_max         30.000;          # Maximum clock to out delay (external device)
+set tco_min         10.000;          # Minimum clock to out delay (external device)
+set trce_dly_max    1.000;          # Maximum board trace delay
+set trce_dly_min    0.000;          # Minimum board trace delay
+set input_ports     {eth_rxd[*] eth_rx_dv eth_rxerr};  # List of input ports
+
+
+set destination_clock eth_tx_clk;     # Name of destination clock
+set tsu               10.000;            # Destination device setup time requirement
+set thd               0.000;            # Destination device hold time requirement
+set trce_dly_max      1.000;            # Maximum board trace delay
+set trce_dly_min      0.000;            # Minimum board trace delay
+set output_ports      {eth_txd[*] eth_tx_en};   # List of output ports
+
+# Output Delay Constraint
+set_output_delay -clock $destination_clock -max [expr $trce_dly_max + $tsu] [get_ports $output_ports];
+set_output_delay -clock $destination_clock -min [expr $trce_dly_min - $thd] [get_ports $output_ports];
+
 #set_false_path -to [get_ports {phy_mdio phy_mdc}]
 #set_output_delay 0 [get_ports {phy_mdio phy_mdc}]
 #set_false_path -from [get_ports {phy_mdio}]
