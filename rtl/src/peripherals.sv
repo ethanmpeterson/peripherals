@@ -285,6 +285,12 @@ module peripherals (
         udp_in.udp_dest_port = udp_out.udp_dest_port;
 
         udp_in.udp_length = udp_out.udp_length;
+
+        // Other IP configuration info for the UDP input
+        udp_in.udp_ip_dscp = 0;
+        udp_in.udp_ip_ecn = 0;
+        udp_in.udp_ip_ttl = 64;
+        udp_in.udp_checksum = 0;
     end
 
     udp_complete_wrapper udp_server (
