@@ -265,13 +265,34 @@ module peripherals (
     );
 
     udp_configuration_interface udp_conf ();
-    udp_header_interface udp_loopback ();
+
+    udp_header_interface udp_in ();
+    udp_header_interface udp_out ();
+
+    always_comb begin
+        // Valid and ready signals for the headers of the UDP packets. Behaves in the same way as it would for AXIS
+        udp_in.udp_hdr_valid = udp_out.udp_hdr_valid;
+        udp_out.udp_hdr_ready = udp_in.udp_hdr_ready;
+
+        // This will be the FPGA UDP server IP
+        udp_in.udp_ip_source_ip = {8'd192, 8'd168, 8'd1, 8'd128};
+
+        // echo the packet back to the IP address it came from
+        udp_in.udp_ip_dest_ip = udp_out.udp_ip_source_ip;
+
+        // use same source and destination ports as the packet received (echo on the same port)
+        udp_in.udp_source_port = udp_out.udp_source_port;
+        udp_in.udp_dest_port = udp_out.udp_dest_port;
+
+        udp_in.udp_length = udp_out.udp_length;
+    end
+
     udp_complete_wrapper udp_server (
         .axis_udp_payload_in(axis_payload_loopback),
-        .udp_in(udp_loopback),
+        .udp_in(udp_in),
 
         .axis_udp_payload_out(axis_payload_loopback),
-        .udp_out(udp_loopback),
+        .udp_out(udp_out),
 
         // cross over input output
         .axis_eth_in(axis_eth_out),
