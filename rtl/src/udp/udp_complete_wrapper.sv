@@ -18,13 +18,6 @@ module udp_complete_wrapper (
     udp_configuration_interface udp_configuration
 );
 
-    var logic                       rx_udp_hdr_valid;
-    var logic                       rx_udp_hdr_ready;
-    var logic [31:0]                rx_udp_ip_source_ip;
-    var logic [15:0]                rx_udp_source_port;
-    var logic [15:0]                rx_udp_dest_port;
-    var logic [15:0]                rx_udp_length;
-
     udp_complete udp_complete_inst (
         // assuming it has the same clock as rx
         .clk(axis_udp_payload_in.clk),
@@ -72,6 +65,7 @@ module udp_complete_wrapper (
 
         // IP Frame Output
         .m_ip_hdr_valid(),
+        // .m_ip_hdr_ready(),
         .m_ip_hdr_ready(1),
         .m_ip_eth_dest_mac(),
         .m_ip_eth_src_mac(),
@@ -92,12 +86,16 @@ module udp_complete_wrapper (
         .m_ip_payload_axis_tdata(),
         .m_ip_payload_axis_tvalid(),
         .m_ip_payload_axis_tready(1),
+        // .m_ip_payload_axis_tready(),
         .m_ip_payload_axis_tlast(),
         .m_ip_payload_axis_tuser(),
 
         // UDP input
         .s_udp_hdr_valid(udp_in.udp_hdr_valid),
         .s_udp_hdr_ready(udp_in.udp_hdr_ready),
+        // .s_udp_ip_dscp(udp_in.udp_ip_dscp),
+        // .s_udp_ip_ecn(udp_in.udp_ip_ecn),
+        // .s_udp_ip_ttl(udp_in.udp_ip_ttl),
         .s_udp_ip_dscp(0),
         .s_udp_ip_ecn(0),
         .s_udp_ip_ttl(64),
@@ -107,6 +105,8 @@ module udp_complete_wrapper (
         .s_udp_dest_port(udp_in.udp_dest_port),
         .s_udp_length(udp_in.udp_length),
         .s_udp_checksum(0),
+        // .s_udp_checksum(udp_in.udp_checksum),
+
         .s_udp_payload_axis_tdata(axis_udp_payload_in.tdata),
         .s_udp_payload_axis_tvalid(axis_udp_payload_in.tvalid),
         .s_udp_payload_axis_tready(axis_udp_payload_in.tready),
@@ -136,6 +136,7 @@ module udp_complete_wrapper (
         .m_udp_dest_port(udp_out.udp_dest_port),
         .m_udp_length(udp_out.udp_length),
         .m_udp_checksum(udp_out.udp_checksum),
+
         .m_udp_payload_axis_tdata(axis_udp_payload_out.tdata),
         .m_udp_payload_axis_tvalid(axis_udp_payload_out.tvalid),
         .m_udp_payload_axis_tready(axis_udp_payload_out.tready),
