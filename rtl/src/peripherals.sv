@@ -265,9 +265,13 @@ module peripherals (
     );
 
     udp_configuration_interface udp_conf ();
+    udp_header_interface udp_loopback ();
     udp_complete_wrapper udp_server (
         .axis_udp_payload_in(axis_payload_loopback),
+        .udp_in(udp_loopback),
+
         .axis_udp_payload_out(axis_payload_loopback),
+        .udp_out(udp_loopback),
 
         // cross over input output
         .axis_eth_in(axis_eth_out),
