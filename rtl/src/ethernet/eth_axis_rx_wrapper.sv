@@ -46,15 +46,15 @@ module eth_axis_rx_wrapper #(
         .error_header_early_termination(error_header_early_termination)
     );
 
-    ila_eth_axis ila_eth_axis_inst (
-	      .clk(axis_eth_out.clk), // input wire clk
+    // ila_eth_axis ila_eth_axis_inst (
+	  //     .clk(axis_eth_out.clk), // input wire clk
 
 
-	      .probe0(axis_eth_out.tdata), // input wire [7:0]  probe0
-	      .probe1(axis_eth_out.tvalid), // input wire [0:0]  probe1
-	      .probe2(axis_eth_out.tready), // input wire [0:0]  probe2
-	      .probe3(axis_eth_out.tlast) // input wire [0:0]  probe3
-    );
+	  //     .probe0(axis_eth_out.tdata), // input wire [7:0]  probe0
+	  //     .probe1(axis_eth_out.tvalid), // input wire [0:0]  probe1
+	  //     .probe2(axis_eth_out.tready), // input wire [0:0]  probe2
+	  //     .probe3(axis_eth_out.tlast) // input wire [0:0]  probe3
+    // );
 
 endmodule
 

@@ -45,15 +45,16 @@ module eth_axis_tx_wrapper #(
         .busy(busy)
     );
 
-    ila_eth_axis ila_eth_axis_eth_tx (
-	      .clk(axis_mii_stream_out.clk), // input wire clk
+    // ila_eth_axis ila_eth_axis_eth_tx (
+	  //     .clk(axis_mii_stream_out.clk), // input wire clk
 
 
-	      .probe0(axis_eth_in.tdata), // input wire [7:0]  probe0
-	      .probe1(axis_eth_in.tvalid), // input wire [0:0]  probe1
-	      .probe2(axis_eth_in.tready), // input wire [0:0]  probe2
-	      .probe3(axis_eth_in.tlast) // input wire [0:0]  probe3
-    );
+	  //     .probe0(axis_eth_in.tdata), // input wire [7:0]  probe0
+	  //     .probe1(axis_eth_in.tvalid), // input wire [0:0]  probe1
+	  //     .probe2(axis_eth_in.tready), // input wire [0:0]  probe2
+	  //     .probe3(axis_eth_in.tlast) // input wire [0:0]  probe3
+    // );
+
 endmodule
 
 `default_nettype wire

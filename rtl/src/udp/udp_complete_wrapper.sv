@@ -65,7 +65,6 @@ module udp_complete_wrapper (
 
         // IP Frame Output
         .m_ip_hdr_valid(),
-        // .m_ip_hdr_ready(),
         .m_ip_hdr_ready(1),
         .m_ip_eth_dest_mac(),
         .m_ip_eth_src_mac(),
@@ -86,7 +85,6 @@ module udp_complete_wrapper (
         .m_ip_payload_axis_tdata(),
         .m_ip_payload_axis_tvalid(),
         .m_ip_payload_axis_tready(1),
-        // .m_ip_payload_axis_tready(),
         .m_ip_payload_axis_tlast(),
         .m_ip_payload_axis_tuser(),
 
