@@ -40,7 +40,7 @@ interface axis_interface #(
 
     // A consumer will assert tready when it can accept new data
     var logic                      tready;
-    
+
     // Signal to mark the last word in a packet. Ex if you have 8 byte packets,
     // you can assert tlast for the cycle you tx the 8th byte.
     var logic                      tlast;
@@ -49,18 +49,18 @@ interface axis_interface #(
     // when you are txing your data out of order. tid can be used as ordering
     // information for the final endpoint.
     var logic   [ID_WIDTH-1:0]     tid;
-    
+
     // encodes routing information for the data. Ex. Do I route my UART Rx data
     // to the ethernet PHY or the RS485 XCVR.
     var logic   [DEST_WIDTH-1:0]   tdest;
-    
+
     // a user defined side band signal. Could be used for the source of the
     // transfer or other metadata information.
     var logic   [USER_WIDTH-1:0]   tuser;
 
 
     // Employ modports to establish AXI Stream inputs and outputs.
-    
+
     // A source of AXI Stream data. I.e a FIFO output
     modport Source (
         input clk, reset,
@@ -78,3 +78,4 @@ interface axis_interface #(
 endinterface // axis_interface
 
 `default_nettype wire
+
