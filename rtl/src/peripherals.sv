@@ -217,7 +217,13 @@ module peripherals (
         eth_tx_en = mii_signals.tx_en;
     end
 
-    udp_tx_example udp_tx_example_inst (
+    // udp_tx_example udp_tx_example_inst (
+    //     .udp_sys_clk(udp_sys_clk),
+    //     .system_reset(system_reset),
+    //     .phy_mii(mii_signals)
+    // );
+
+    udp_echo_example udp_echo_example_inst (
         .udp_sys_clk(udp_sys_clk),
         .system_reset(system_reset),
         .phy_mii(mii_signals)

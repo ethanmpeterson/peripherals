@@ -4,7 +4,7 @@
 // both AXI Streams should have the same clock
 module udp_complete_wrapper (
     axis_interface.Sink axis_udp_payload_in,
-    udp_header_interface.Output udp_in,
+    udp_header_interface.Input udp_in,
 
     axis_interface.Source axis_udp_payload_out,
     udp_header_interface.Output udp_out,
@@ -97,7 +97,7 @@ module udp_complete_wrapper (
         // .s_udp_ip_dscp(0),
         // .s_udp_ip_ecn(0),
         // .s_udp_ip_ttl(64),
-        .s_udp_ip_source_ip({8'd192, 8'd168, 8'd1, 8'd128}),
+        .s_udp_ip_source_ip(udp_in.udp_ip_source_ip),
         .s_udp_ip_dest_ip(udp_in.udp_ip_dest_ip),
         .s_udp_source_port(udp_in.udp_source_port),
         .s_udp_dest_port(udp_in.udp_dest_port),
@@ -162,6 +162,15 @@ module udp_complete_wrapper (
         .gateway_ip(udp_configuration.gateway_ip),
         .subnet_mask(udp_configuration.subnet_mask),
         .clear_arp_cache(0)
+    );
+
+    ila_eth_axis ila_complete_wrapper (
+	      .clk(axis_udp_payload_in.clk), // input wire clk
+
+	      .probe0(0), // input wire [7:0]  probe0
+	      .probe1(udp_in.udp_hdr_valid), // input wire [0:0]  probe1
+	      .probe2(udp_in.udp_hdr_ready), // input wire [0:0]  probe2
+	      .probe3(0) // input wire [0:0]  probe3
     );
 endmodule
 
