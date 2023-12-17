@@ -113,8 +113,9 @@ module udp_tx_example (
         axis_payload_in.tkeep = 1'b1;
         axis_payload_in.tid = 0;
         axis_payload_in.tdest = 0;
-        axis_payload_in.tuser = 0;
-        axis_payload_in.tlast = 1'b1;
+        axis_payload_in.tuser = 1'b0;
+        // axis_payload_in.tlast = 1'b1;
+        // axis_payload_in.tlast = 1'b0;
 
         udp_in.udp_hdr_valid = 1'b1; // Mark header as always valid
 
@@ -132,11 +133,11 @@ module udp_tx_example (
         udp_in.udp_dest_port = 3000;
 
         // Not yet sure how to set this based off a 1 byte payload
-        udp_in.udp_length = 128;
+        udp_in.udp_length = 20;
 
         udp_in.udp_ip_dscp = 0;
         udp_in.udp_ip_ecn = 0;
-        udp_in.udp_ip_ttl = 64;
+        udp_in.udp_ip_ttl = 2;
         udp_in.udp_checksum = 0;
 
         // Set defaults for UDP outputs
@@ -151,34 +152,40 @@ module udp_tx_example (
         // Tx increasing int in a loop. Can be checked with the udp_tx_example python script
         if (axis_payload_in.tvalid && axis_payload_in.tready) begin
             axis_payload_in.tdata <= axis_payload_in.tdata + 1;
+            if (axis_payload_in.tdata == 255) begin
+                axis_payload_in.tlast <= 1'b1;
+            end else begin
+                axis_payload_in.tlast <= 1'b0;
+            end
         end
     end
 
-    udp_complete_wrapper udp_server (
-        .axis_udp_payload_in(axis_payload_in),
-        .udp_in(udp_in),
+        udp_complete_wrapper udp_server (
+            .axis_udp_payload_in(axis_payload_in.Sink),
+            .udp_in(udp_in.Input),
 
-        .axis_udp_payload_out(axis_payload_out),
-        .udp_out(udp_out),
+            .axis_udp_payload_out(axis_payload_out.Source),
+            .udp_out(udp_out.Output),
 
-        // cross over input output
-        .axis_eth_in(axis_eth_out),
-        .eth_in(eth_out),
+            // cross over input output
+            .axis_eth_in(axis_eth_out),
+            .eth_in(eth_out),
 
-        .axis_eth_out(axis_eth_in),
-        .eth_out(eth_in),
+            .axis_eth_out(axis_eth_in),
+            .eth_out(eth_in),
 
-        .udp_configuration(udp_conf)
-    );
+            .udp_configuration(udp_conf)
+        );
 
-    ila_eth_axis ila_eth_axis_inst (
-	      .clk(axis_payload_in.clk), // input wire clk
 
-	      .probe0(axis_payload_in.tdata), // input wire [7:0]  probe0
-	      .probe1(axis_payload_in.tvalid), // input wire [0:0]  probe1
-	      .probe2(axis_payload_in.tready), // input wire [0:0]  probe2
-	      .probe3(udp_in.udp_hdr_ready) // input wire [0:0]  probe3
-    );
+        // ila_eth_axis ila_tx_example_inst (
+	      //     .clk(axis_payload_in.clk), // input wire clk
+
+	      //     .probe0(axis_payload_in.tdata), // input wire [7:0]  probe0
+	      //     .probe1(axis_payload_in.tvalid), // input wire [0:0]  probe1
+	      //     .probe2(udp_in.udp_hdr_valid), // input wire [0:0]  probe2
+	      //     .probe3(udp_in.udp_hdr_ready) // input wire [0:0]  probe3
+        // );
 
 endmodule
 

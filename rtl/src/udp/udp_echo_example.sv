@@ -36,7 +36,6 @@ module udp_echo_example (
     );
     eth_interface eth_out ();
 
-
     axis_interface axis_eth_in (
         .clk(udp_sys_clk),
         .reset(system_reset)
@@ -53,7 +52,6 @@ module udp_echo_example (
         .error_header_early_termination()
     );
 
-    // configure loopback through the wrappers
     eth_axis_tx_wrapper eth_axis_tx_wrapper_inst (
         .axis_mii_stream_out(axis_mii_tx_stream),
 
@@ -100,10 +98,10 @@ module udp_echo_example (
 
     udp_complete_wrapper udp_server (
         .axis_udp_payload_in(axis_payload_loopback),
-        .udp_in(udp_in),
+        .udp_in(udp_in.Input),
 
         .axis_udp_payload_out(axis_payload_loopback),
-        .udp_out(udp_out),
+        .udp_out(udp_out.Output),
 
         // cross over input output
         .axis_eth_in(axis_eth_out),
@@ -114,6 +112,30 @@ module udp_echo_example (
 
         .udp_configuration(udp_conf)
     );
+
+
+    // ila_eth_axis ila_eth_axis_inst (
+	  //     .clk(udp_sys_clk), // input wire clk
+
+	  //     .probe0(axis_payload_loopback.tdata), // input wire [7:0]  probe0
+	  //     .probe1(axis_payload_loopback.tvalid), // input wire [0:0]  probe1
+	  //     .probe2(axis_payload_loopback.tready), // input wire [0:0]  probe2
+	  //     .probe3(udp_out.udp_hdr_ready) // input wire [0:0]  probe3
+    // );
+
+    // ila_udp ila_udp_inst (
+	  //     .clk(udp_sys_clk), // input wire clk
+
+
+	  //     .probe0(udp_in.udp_length), // input wire [15:0]  probe0  
+	  //     .probe1(axis_payload_loopback.tdata), // input wire [7:0]  probe1 
+	  //     .probe2(axis_payload_loopback.tkeep), // input wire [7:0]  probe2 
+	  //     .probe3(axis_payload_loopback.tlast), // input wire [7:0]  probe3 
+	  //     .probe4(udp_in.udp_hdr_ready), // input wire [0:0]  probe4 
+	  //     .probe5(udp_in.udp_hdr_valid), // input wire [0:0]  probe5 
+	  //     .probe6(axis_payload_loopback.tvalid), // input wire [0:0]  probe6 
+	  //     .probe7(axis_payload_loopback.tready) // input wire [0:0]  probe7
+    // );
 
 endmodule
 
