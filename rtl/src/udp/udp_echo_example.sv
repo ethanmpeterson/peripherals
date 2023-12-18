@@ -87,7 +87,8 @@ module udp_echo_example (
         udp_in.udp_source_port = udp_out.udp_source_port;
         udp_in.udp_dest_port = udp_out.udp_dest_port;
 
-        udp_in.udp_length = udp_out.udp_length;
+        // Not needed since we auto generate packet length in UDP complete
+        // udp_in.udp_length = udp_out.udp_length;
 
         // Other IP configuration info for the UDP input
         udp_in.udp_ip_dscp = 0;
@@ -113,7 +114,19 @@ module udp_echo_example (
         .udp_configuration(udp_conf)
     );
 
+    ila_udp_analyzer ila_udp_echo_analyzer (
+	      .clk(udp_sys_clk), // input wire clk
 
+
+	      .probe0(udp_in.udp_hdr_ready), // input wire [0:0]  probe0  
+	      .probe1(udp_in.udp_hdr_valid), // input wire [0:0]  probe1 
+	      .probe2(axis_payload_loopback.tdata), // input wire [7:0]  probe2 
+	      .probe3(udp_in.udp_length), // input wire [15:0]  probe3 
+	      .probe4(axis_payload_loopback.tvalid), // input wire [0:0]  probe4 
+	      .probe5(axis_payload_loopback.tready), // input wire [0:0]  probe5 
+	      .probe6(axis_payload_loopback.tlast), // input wire [0:0]  probe6 
+	      .probe7(axis_payload_loopback.tuser) // input wire [0:0]  probe7
+    );
     // ila_eth_axis ila_eth_axis_inst (
 	  //     .clk(udp_sys_clk), // input wire clk
 
