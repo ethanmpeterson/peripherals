@@ -104,11 +104,15 @@ module udp_tx_example (
         udp_in.udp_ip_dest_ip = {8'd192, 8'd168, 8'd1, 8'd127};
 
         // use same source and destination ports as the packet received (echo on the same port)
-        udp_in.udp_source_port = 3000;
+        udp_in.udp_source_port = 3001;
         udp_in.udp_dest_port = 3000;
 
         // Not needed since we auto generate packet length in UDP complete
         // udp_in.udp_length = udp_out.udp_length;
+
+        // TODO: use wireshark reference checksums to get to the bottom of why
+        // we get the wrong checksums in some packets
+        udp_in.udp_length = 1;
 
         // Other IP configuration info for the UDP input
         udp_in.udp_ip_dscp = 0;

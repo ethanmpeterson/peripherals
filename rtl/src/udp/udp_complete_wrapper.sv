@@ -164,14 +164,14 @@ module udp_complete_wrapper (
         .clear_arp_cache(0)
     );
 
-    ila_eth_axis ila_complete_wrapper (
-	      .clk(axis_udp_payload_in.clk), // input wire clk
+    // ila_eth_axis ila_complete_wrapper (
+	  //     .clk(axis_udp_payload_in.clk), // input wire clk
 
-	      .probe0(0), // input wire [7:0]  probe0
-	      .probe1(udp_in.udp_hdr_valid), // input wire [0:0]  probe1
-	      .probe2(udp_in.udp_hdr_ready), // input wire [0:0]  probe2
-	      .probe3(0) // input wire [0:0]  probe3
-    );
+	  //     .probe0(0), // input wire [7:0]  probe0
+	  //     .probe1(udp_in.udp_hdr_valid), // input wire [0:0]  probe1
+	  //     .probe2(udp_in.udp_hdr_ready), // input wire [0:0]  probe2
+	  //     .probe3(0) // input wire [0:0]  probe3
+    // );
 endmodule
 
 `default_nettype wire

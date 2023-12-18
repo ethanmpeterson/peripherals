@@ -228,7 +228,6 @@ module peripherals (
     //     .system_reset(system_reset),
     //     .phy_mii(mii_signals)
     // );
-
 endmodule
 
 `default_nettype wire
