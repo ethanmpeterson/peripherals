@@ -69,12 +69,12 @@ module udp_tx_example (
     axis_interface axis_payload_in (
         .clk(udp_sys_clk),
         .reset(system_reset)
-        );
+    );
 
     axis_interface axis_payload_out (
         .clk(udp_sys_clk),
         .reset(system_reset)
-        );
+    );
 
     udp_configuration_interface udp_conf ();
 
@@ -111,7 +111,7 @@ module udp_tx_example (
         // udp_in.udp_length = udp_out.udp_length;
 
         // TODO: use wireshark reference checksums to get to the bottom of why
-        // we get the wrong checksums in some packets
+        // we get the wrong checksums in some packets. Write a TB to do this
         udp_in.udp_length = 1;
 
         // Other IP configuration info for the UDP input
