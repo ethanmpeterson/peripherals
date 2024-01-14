@@ -156,7 +156,7 @@ module udp_tx_example (
 	      .probe0(udp_in.udp_hdr_ready), // input wire [0:0]  probe0  
 	      .probe1(udp_in.udp_hdr_valid), // input wire [0:0]  probe1 
 	      .probe2(axis_payload_in.tdata), // input wire [7:0]  probe2 
-	      .probe3(udp_in.udp_length), // input wire [15:0]  probe3 
+	      .probe3(udp_out.udp_checksum), // input wire [15:0]  probe3 
 	      .probe4(axis_payload_in.tvalid), // input wire [0:0]  probe4 
 	      .probe5(axis_payload_in.tready), // input wire [0:0]  probe5 
 	      .probe6(axis_payload_in.tlast), // input wire [0:0]  probe6 

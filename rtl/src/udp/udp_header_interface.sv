@@ -29,6 +29,15 @@ interface udp_header_interface ();
 
     modport Input (
         input   udp_hdr_valid,
+        input   udp_eth_dest_mac,
+        input   udp_eth_src_mac,
+        input   udp_eth_type,
+        input   udp_ip_version,
+        input   udp_ip_ihl,
+        input   udp_ip_identification,
+        input   udp_ip_flags,
+        input   udp_ip_fragment_offset,
+        input   udp_ip_header_checksum,
         input   udp_ip_dscp,
         input   udp_ip_ecn,
         input   udp_ip_ttl,
