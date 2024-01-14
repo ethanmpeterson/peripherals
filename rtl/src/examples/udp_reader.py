@@ -8,7 +8,7 @@ UDP_IP = "192.168.1.127"
 UDP_PORT = 3000
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.setsockopt(socket.SOL_SOCKET, 25, str("enp0s20f0u1c2" + '\0').encode('utf-8'))
+sock.setsockopt(socket.SOL_SOCKET, 25, str("enp56s0u2u1" + '\0').encode('utf-8'))
 
 sock.bind((UDP_IP, UDP_PORT))
 
