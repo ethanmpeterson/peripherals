@@ -14,5 +14,5 @@ sock.bind((UDP_IP, UDP_PORT))
 
 while True:
     data, addr = sock.recvfrom(1)
-    print("received message: %s, address: %s" % (data, addr))
+    print("received message: %d, address: %s" % (int.from_bytes(data, "big"), addr))
 
