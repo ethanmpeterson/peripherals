@@ -22,6 +22,7 @@ sources = [
     AXIS / "*.sv",
     ETHERNET / "*.sv",
     UDP / "*.sv",
+    ETHERNET_LIB / "rtl" / "udp_checksum_gen.v",
     TESTBENCHES / "udp_checksum_gen_wrapper_tb.sv",
 ]
 

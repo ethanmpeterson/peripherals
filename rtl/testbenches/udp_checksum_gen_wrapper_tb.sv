@@ -64,10 +64,6 @@ module udp_checksum_gen_wrapper_tb;
             end
             WRITE: begin
                 if (axis_payload_in.tready && axis_payload_in.tvalid) begin
-                    axis_payload_in.tdata <= axis_payload_in.tdata + 1;
-                end
-
-                if (axis_payload_in.tdata == 255) begin
                     state <= DONE;
                 end
             end
@@ -115,13 +111,14 @@ module udp_checksum_gen_wrapper_tb;
         end
 
         `TEST_CASE("single_byte_checksums") begin
-            // Dummy assertion until this is implemented
-            automatic int expected_checksum = 0;
-            automatic int checksums_checked = 0;
-            while (checksums_checked < 255) begin
+            // Simple test case for manual wave form inspection. to help inform the interface design
+            automatic bit checksum_checked = 0;
+            while (checksum_checked == 0) begin
                 @(posedge clk) begin
                     if (udp_out.udp_hdr_ready && udp_out.udp_hdr_valid) begin
-                        `CHECK_EQUAL(udp_out.udp_checksum, expected_checksum);
+                        // right most value is the checksum of a 0x00 UDP payload
+                        `CHECK_EQUAL(udp_out.udp_checksum, 16'h641b);
+                        checksum_checked = 1;
                     end
                 end
             end
