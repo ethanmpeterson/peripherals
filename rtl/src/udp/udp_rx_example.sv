@@ -1,7 +1,7 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-module udp_tx_example (
+module udp_rx_example (
     input var logic udp_sys_clk,
     input var logic system_reset,
     mii_interface.Mac phy_mii
