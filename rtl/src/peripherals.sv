@@ -3,8 +3,8 @@
 
 module peripherals (
     input var logic ext_clk,
-    output var logic blinky,
-    output var logic accel_status_led,
+    // output var logic blinky,
+    // output var logic accel_status_led,
 
     output var logic ftdi_uart_tx,
     input var logic ftdi_uart_rx,
@@ -33,7 +33,9 @@ module peripherals (
 
     input var logic eth_tx_clk,
     output var logic eth_tx_en,
-    output var logic[3:0] eth_txd
+    output var logic[3:0] eth_txd,
+
+    output var logic[3:0] led
 );
     assign eth_rstn = 1'b1;
     // Configure PHY clocks generates a 25 MHz clock for the PHY
@@ -93,12 +95,12 @@ module peripherals (
     assign accel_pmod_sck = accel_spi_bus.sck;
 
     assign accel_spi_bus.miso = accel_pmod_miso;
-    adxl345 accelerometer (
-        .configured(accel_status_led),
-        .reset(system_reset),
-        .spi_bus(accel_spi_bus.Master),
-        .accelerometer_data(accelerometer_data)
-    );
+    // adxl345 accelerometer (
+    //     .configured(accel_status_led),
+    //     .reset(system_reset),
+    //     .spi_bus(accel_spi_bus.Master),
+    //     .accelerometer_data(accelerometer_data)
+    // );
 
     axis_interface #(
         .DATA_WIDTH(8),
@@ -217,10 +219,17 @@ module peripherals (
         eth_tx_en = mii_signals.tx_en;
     end
 
-    udp_tx_example udp_tx_example_inst (
+    // udp_tx_example udp_tx_example_inst (
+    //     .udp_sys_clk(udp_sys_clk),
+    //     .system_reset(system_reset),
+    //     .phy_mii(mii_signals)
+    // );
+
+    udp_rx_example udp_rx_example_inst (
         .udp_sys_clk(udp_sys_clk),
         .system_reset(system_reset),
-        .phy_mii(mii_signals)
+        .phy_mii(mii_signals),
+        .led(led)
     );
 
     // udp_echo_example udp_echo_example_inst (
