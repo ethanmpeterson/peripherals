@@ -10,5 +10,4 @@ UDP_PORT = 3000
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, 25, str("enp56s0u2u1" + '\0').encode('utf-8'))
 
-data = 7
 sock.sendto(b'A', (UDP_IP, UDP_PORT))
