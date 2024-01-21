@@ -46,7 +46,7 @@ module spi_master #(
     // that the first bit saw a sampling edge allowing us to move onto updating
     // mosi as normal for the rest of the transfer.
     var logic got_first_sample;
-    
+
     always_ff @(posedge mosi_stream.clk) begin
         sampling_edge <= 1'b0;
         case (transmitter_state)
@@ -80,7 +80,7 @@ module spi_master #(
                     // instead
                     spi_bus.cs <= 1'b0;
                 end
-                
+
                 // start transferring after cs has been low for at least a half
                 // cycle
                 if (!spi_bus.cs) begin
