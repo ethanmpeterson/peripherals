@@ -36,8 +36,7 @@ module mdio_master #(
 
         // Includes the start condition, opcode, and PHY address for the R/W cases respectively
         MDIO_MASTER_STATE_START_CONDITION,
-        MDIO_MASTER_STATE_WRITE_PREAMBLE,
-        MDIO_MASTER_STATE_READ_PREAMBLE,
+        MDIO_MASTER_STATE_PREAMBLE,
 
         // Not the full two bits, only handles the high Z differentiation case
         MDIO_MASTER_STATE_WRITE_TURNAROUND,
@@ -53,7 +52,6 @@ module mdio_master #(
         MDIO_MASTER_STATE_READ_REGISTER_DATA
     } mdio_master_state_t;
 
-    var logic [axi_lite.WRITE_ADDRESS_WIDTH-1:0] write_address;
     var logic [axi_lite.WRITE_DATA_WIDTH-1:0]    write_data;
 
     // Signal to tell us if the data is on the line when seeing the first rising
@@ -67,6 +65,7 @@ module mdio_master #(
     var logic [CYCLE_COUNTER_REG_WIDTH:0]       cycle_counter = { CYCLE_COUNTER_REG_WIDTH{1'b0} };
     var logic                                   mdc_rising_edge = 1'b0;
     var logic                                   mdc_falling_edge = 1'b0;
+    var logic                                   is_read_transaction = 1'b0;
 
     mdio_master_state_t mdio_master_state = MDIO_MASTER_STATE_INIT;
 
@@ -162,14 +161,23 @@ module mdio_master #(
                         preamble_reg[9:5] <= PHY_ADDRESS;
                         preamble_reg[4:0] <= axi_lite.araddr;
 
+                        // Mark the transaction as a read
+                        is_read_transaction <= 1'b1;
+
                         mdio_master_state <= MDIO_MASTER_STATE_START_CONDITION;
                     end else if (axi_lite.awready && axi_lite.awvalid) begin
                         // Latch the register address for a MDIO write and
-                        // proceed to waiting the master to provide the data.
-                        write_address <= axi_lite.awaddr;
 
                         // Indicate the AXI Lite Slave is ready to accept data
                         axi_lite.wready <= 1'b1;
+
+                        // populate the preamble register for a write transaction
+                        preamble_reg[11:10] <= MDIO_WRITE_OPCODE;
+                        preamble_reg[9:5] <= PHY_ADDRESS;
+                        preamble_reg[4:0] <= axi_lite.awaddr;
+
+                        // Mark the transaction as a write
+                        is_read_transaction <= 1'b0;
 
                         // Indicate the Module is no longer accepting address data
                         axi_lite.arready <= 1'b0;
@@ -188,7 +196,7 @@ module mdio_master #(
                         axi_lite.wready <= 1'b0;
 
                         // Start the MDIO write now that we have all the information
-                        mdio_master_state <= MDIO_MASTER_STATE_WRITE_PREAMBLE;
+                        mdio_master_state <= MDIO_MASTER_STATE_PREAMBLE;
                     end
                 end
 
@@ -213,14 +221,11 @@ module mdio_master #(
                         mdio_o <= 1'b1;
                         wrote_first_bit <= 1'b0;
 
-                        mdio_master_state <= MDIO_MASTER_STATE_READ_PREAMBLE;
+                        mdio_master_state <= MDIO_MASTER_STATE_PREAMBLE;
                     end
                 end
 
-                MDIO_MASTER_STATE_WRITE_PREAMBLE: begin
-                end
-
-                MDIO_MASTER_STATE_READ_PREAMBLE: begin
+                MDIO_MASTER_STATE_PREAMBLE: begin
                     if (mdc_falling_edge) begin
                         mdio_o <= preamble_reg[preamble_bit_idx];
 
