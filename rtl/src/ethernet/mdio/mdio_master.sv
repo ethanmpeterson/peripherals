@@ -18,6 +18,10 @@ module mdio_master #(
 
     axi_lite_interface.Slave axi_lite
 );
+    // Define MDIO transaction constants
+    localparam MDIO_READ_OPCODE      = 2'b10;
+    localparam MDIO_WRITE_OPCODE     = 2'b01;
+    localparam MDIO_WRITE_TURNAROUND = 2'b10;
 
     // Design a state machine to consume MDIO R/W Commands and construct a
     // packet to send out the MDIO/MDC signal For background consult the timing
@@ -51,7 +55,6 @@ module mdio_master #(
 
     var logic [axi_lite.WRITE_ADDRESS_WIDTH-1:0] write_address;
     var logic [axi_lite.WRITE_DATA_WIDTH-1:0]    write_data;
-    var logic [axi_lite.READ_ADDRESS_WIDTH-1:0]  read_address;
 
     // Signal to tell us if the data is on the line when seeing the first rising
     // edge in an MDIO write transaction. Used in the
@@ -59,12 +62,11 @@ module mdio_master #(
     var logic                                   wrote_first_bit = 1'b0;
     var logic [$clog2(CLKS_PER_BIT):0]          transfer_clock_cycle_count;
 
-
-
     // Generate MDC clock line.
     localparam                                  CYCLE_COUNTER_REG_WIDTH = $clog2(CLKS_PER_BIT);
     var logic [CYCLE_COUNTER_REG_WIDTH:0]       cycle_counter = { CYCLE_COUNTER_REG_WIDTH{1'b0} };
     var logic                                   mdc_rising_edge = 1'b0;
+    var logic                                   mdc_falling_edge = 1'b0;
 
     mdio_master_state_t mdio_master_state = MDIO_MASTER_STATE_INIT;
 
@@ -76,25 +78,29 @@ module mdio_master #(
             // If the next value is a rising edge
             if (!mdc) begin
                 mdc_rising_edge <= 1'b1;
+                mdc_falling_edge <= 1'b0;
             end else begin
                 mdc_rising_edge <= 1'b0;
+                mdc_falling_edge <= 1'b1;
             end
 
             // swap the state of MDC and register the rising / falling edge
             mdc <= !mdc;
         end else begin
             cycle_counter <= cycle_counter + 1;
+
+            // Zero out the rising/falling edge registers for the intermediate clock cycles
+            mdc_rising_edge <= 1'b0;
+            mdc_falling_edge <= 1'b0;
         end
 
-        if (reset) begin
-            mdc <= 1'b0;
-        end
-
-        if (mdio_master_state == MDIO_MASTER_STATE_INIT) begin
+        if (reset || mdio_master_state == MDIO_MASTER_STATE_INIT) begin
             mdc <= 1'b0;
         end
     end
 
+    var logic [11:0] preamble_reg;
+    var logic [3:0]  preamble_bit_idx;
     var logic [15:0] mdc_cycle_tracker;
     var logic        mdio_reg;
     always_ff @(posedge clk) begin
@@ -107,7 +113,6 @@ module mdio_master #(
                     // transactions in the case that an invalid command is
                     // provided to the PHY. This is the amount of time it takes
                     // to re-synchronize
-
 
                     // tristate the output while the module is initializing
                     mdio_o <= 1'b0;
@@ -137,6 +142,8 @@ module mdio_master #(
                     axi_lite.rresp <= 2'b00;
                     axi_lite.rvalid <= 1'b0;
 
+                    preamble_bit_idx <= 4'hb;
+
                     // Enter the read/write branch of the state machine
 
                     // NOTE: that if a valid read and write address arrive in
@@ -145,11 +152,15 @@ module mdio_master #(
                     if (axi_lite.arready && axi_lite.arvalid) begin
                         // Latch the given register address on the PHY and start
                         // the MDIO read transaction.
-                        read_address <= axi_lite.araddr;
 
                         // Indicate the Module is no longer accepting address data
                         axi_lite.arready <= 1'b0;
                         axi_lite.awready <= 1'b0;
+
+                        // populate the preamble register for a read transaction
+                        preamble_reg[11:10] <= MDIO_READ_OPCODE;
+                        preamble_reg[9:5] <= PHY_ADDRESS;
+                        preamble_reg[4:0] <= axi_lite.araddr;
 
                         mdio_master_state <= MDIO_MASTER_STATE_START_CONDITION;
                     end else if (axi_lite.awready && axi_lite.awvalid) begin
@@ -182,26 +193,25 @@ module mdio_master #(
                 end
 
                 MDIO_MASTER_STATE_START_CONDITION: begin
-                    // When it is a not a rising edge of MDC, queue up the first
-                    // bit on the line. then advance through the rest of the
-                    // preamble
-                    if (!mdc_rising_edge && !wrote_first_bit) begin
-                        mdio_o <= 1'b0;
+                    // queue up bits on the falling edge of mdc so that we
+                    // always have the data ready for the rising edge.
 
-                        // Don't tristate the bus, drive the data line directly
-                        mdio_t <= 1'b0;
+                    // NOTE: this method depends on having a module clock higher
+                    // than mdc frequency. The exact minimum ratio will depend
+                    // on the setup and hold times of your specific PHY.
 
+                    if (mdc_falling_edge) begin
                         wrote_first_bit <= 1'b1;
+
+                        mdio_t <= 1'b0;
+                        mdio_o <= 1'b0;
                     end
 
-                    if (mdc_rising_edge && wrote_first_bit) begin
-                        // Since wrote_first_bit is asserted, we know that the
-                        // first 0 we sent is on the line and clocked into the
-                        // PHY. Now proceed to write the next value in the start
-                        // condition and then start writing the preamble.
-                        wrote_first_bit <= 1'b0;
-
+                    // Queue up the second bit of the start condition and
+                    // advance to the next state
+                    if (mdc_falling_edge && wrote_first_bit) begin
                         mdio_o <= 1'b1;
+                        wrote_first_bit <= 1'b0;
 
                         mdio_master_state <= MDIO_MASTER_STATE_READ_PREAMBLE;
                     end
@@ -211,10 +221,22 @@ module mdio_master #(
                 end
 
                 MDIO_MASTER_STATE_READ_PREAMBLE: begin
-                    if (mdc_rising_edge) begin
+                    if (mdc_falling_edge) begin
+                        mdio_o <= preamble_reg[preamble_bit_idx];
+
+                        if (preamble_bit_idx == 0) begin
+                            preamble_bit_idx <= 4'hb;
+
+                            mdio_master_state <= MDIO_MASTER_STATE_READ_REGISTER_DATA;
+                        end else begin
+                            preamble_bit_idx <= preamble_bit_idx - 1;
+                        end
                     end
                 end
 
+                MDIO_MASTER_STATE_READ_REGISTER_DATA: begin
+                    // TODO: Sample the data coming back from the PHY on falling clock edges
+                end
                 default: begin
                     mdio_master_state <= MDIO_MASTER_STATE_INIT;
                 end
