@@ -8,11 +8,24 @@ module mdio_master_tb;
     var logic clk;
     var logic mdio_o;
     var logic mdio_t;
-    var logic mdio;
+
+    var logic phy_mdio_o;
+    var logic phy_mdio_t;
+
+    var logic mdio = 1'bz;
 
     var logic mdc;
 
-    assign mdio = mdio_t ? 1'bz : mdio_o;
+    // Handle tristate logic from both BFM and master
+    always_comb begin
+        if (mdio_t && !phy_mdio_t) begin
+            mdio = phy_mdio_o;
+        end else if (!mdio_t && phy_mdio_t) begin
+            mdio = mdio_o;
+        end else begin
+            mdio = 1'bz;
+        end
+    end
 
     var logic[15:0] read_data;
     var logic       read_finished = 1'b0;
@@ -37,11 +50,19 @@ module mdio_master_tb;
         .reset(0),
 
         .mdio_o(mdio_o),
-        .mdio_i(0), // TODO: hook this up to a MDIO BFM
+        .mdio_i(mdio), // TODO: hook this up to a MDIO BFM
         .mdio_t(mdio_t),
         .mdc(mdc),
 
         .axi_lite(mdio_axil.Slave)
+    );
+
+    mdio_slave_bfm bfm (
+        .mdio_i(mdio),
+        .mdio_o(phy_mdio_o),
+        .mdio_t(phy_mdio_t),
+
+        .mdc(mdc)
     );
 
     `TEST_SUITE begin

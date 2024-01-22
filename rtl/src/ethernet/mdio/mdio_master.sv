@@ -232,15 +232,45 @@ module mdio_master #(
                         if (preamble_bit_idx == 0) begin
                             preamble_bit_idx <= 4'hb;
 
-                            mdio_master_state <= MDIO_MASTER_STATE_READ_REGISTER_DATA;
+                            if (is_read_transaction) begin
+                                mdio_master_state <= MDIO_MASTER_STATE_READ_TURNAROUND;
+                            end else begin
+                                mdio_master_state <= MDIO_MASTER_STATE_WRITE_TURNAROUND;
+                            end
                         end else begin
                             preamble_bit_idx <= preamble_bit_idx - 1;
                         end
                     end
                 end
 
+                MDIO_MASTER_STATE_READ_TURNAROUND: begin
+                    // TODO: Place the master MDIO line in tri-state check that
+                    // we receive a leading zero before the register data.
+
+                    if (mdc_falling_edge) begin
+                        mdio_t <= 1'b1;
+                    end
+
+                    // Ensure the turn-around is two cycles before we start reading register data
+                    if (mdc_falling_edge && mdio_t) begin
+                        mdio_master_state <= MDIO_MASTER_STATE_READ_REGISTER_DATA;
+                    end
+
+                    // Improvement: if we don't have a leading zero, add some
+                    // cancellation behavior to wait 32 MDC cycles and re-init
+                    // the state machine.
+                end
+
+                MDIO_MASTER_STATE_WRITE_TURNAROUND: begin
+                    // TODO: Needs a driven 10 binary pattern before proceeding to the write data
+                end
+
                 MDIO_MASTER_STATE_READ_REGISTER_DATA: begin
                     // TODO: Sample the data coming back from the PHY on falling clock edges
+                end
+
+                MDIO_MASTER_STATE_WRITE_REGISTER_DATA: begin
+                    // TODO: clock out the register contents on falling edges
                 end
                 default: begin
                     mdio_master_state <= MDIO_MASTER_STATE_INIT;
