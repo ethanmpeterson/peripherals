@@ -4,7 +4,12 @@
 `include "vunit_defines.svh"
 
 module mdio_master_tb;
-    localparam REGISTER_TEST_VALUE = 16'b0000000000_11_0_11_0;
+    localparam MDIO_READ_OPCODE    = 2'b10;
+    localparam MDIO_WRITE_OPCODE   = 2'b01;
+    localparam PHY_ADDRESS         = 5'h0c;
+    localparam REG_ADDRESS         = 5'h18;
+    localparam REG_DATA            = 16'haaa5;
+
     var logic clk;
     var logic mdio_o;
     var logic mdio_t;
@@ -44,7 +49,8 @@ module mdio_master_tb;
     ) mdio_axil ();
 
     mdio_master #(
-        .CLKS_PER_BIT(6)
+        .CLKS_PER_BIT(6),
+        .PHY_ADDRESS(PHY_ADDRESS)
     ) DUT (
         .clk(clk),
         .reset(0),
@@ -57,12 +63,25 @@ module mdio_master_tb;
         .axi_lite(mdio_axil.Slave)
     );
 
-    mdio_slave_bfm bfm (
+    var logic [4:0] phy_addr;
+    var logic [4:0] reg_addr;
+    var logic [1:0] opcode;
+    var logic       turnaround_valid;
+    mdio_slave_bfm #(
+        .PHY_ADDRESS(PHY_ADDRESS),
+        .TEST_REG_ADDRESS(REG_ADDRESS),
+        .REGISTER_TEST_DATA(REG_DATA)
+    ) bfm (
         .mdio_i(mdio),
         .mdio_o(phy_mdio_o),
         .mdio_t(phy_mdio_t),
 
-        .mdc(mdc)
+        .mdc(mdc),
+
+        .opcode(opcode),
+        .phy_addr(phy_addr),
+        .reg_addr(reg_addr),
+        .turnaround_valid(turnaround_valid)
     );
 
     `TEST_SUITE begin
@@ -113,7 +132,21 @@ module mdio_master_tb;
                     end
                 end
             end
-            `CHECK_EQUAL(read_data, 16'hFFFF);
+            `CHECK_EQUAL(read_data, REG_DATA);
+            `CHECK_EQUAL(turnaround_valid, 1'b1);
+            `CHECK_EQUAL(opcode, MDIO_READ_OPCODE);
+            `CHECK_EQUAL(phy_addr, PHY_ADDRESS);
+            `CHECK_EQUAL(reg_addr, REG_ADDRESS);
+            // TODO: Add an assertion that covers the bus being highZ after the transaction finishes.
+
+            // Some changes were made to make the BFM validation pass. Do
+            // another final scrub that this matches the timing diagram in the
+            // datasheet.
+
+            // Start work on the write path in the state machine.
+
+            // Potential HW test: do an MDIO read of the LED register in the PHY
+            // and map the link LEDs to LEDs on the dev board.
         end
 
         // `TEST_CASE("mdio_write_transaction") begin

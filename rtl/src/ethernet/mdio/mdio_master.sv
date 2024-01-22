@@ -41,6 +41,7 @@ module mdio_master #(
         // Not the full two bits, only handles the high Z differentiation case
         MDIO_MASTER_STATE_WRITE_TURNAROUND,
         MDIO_MASTER_STATE_READ_TURNAROUND,
+        MDIO_MASTER_STATE_END_TURNAROUND,
 
         // Handles the leading zero prior to a register R/W operation
         MDIO_MASTER_STATE_LEADING_ZERO,
@@ -257,12 +258,17 @@ module mdio_master #(
 
                     // Ensure the turn-around is two cycles before we start reading register data
                     if (mdc_falling_edge && mdio_t) begin
-                        mdio_master_state <= MDIO_MASTER_STATE_READ_REGISTER_DATA;
+                        mdio_master_state <= MDIO_MASTER_STATE_END_TURNAROUND;
                     end
 
                     // Improvement: if we don't have a leading zero, add some
                     // cancellation behavior to wait 32 MDC cycles and re-init
                     // the state machine.
+                end
+                MDIO_MASTER_STATE_END_TURNAROUND: begin
+                    if (mdc_falling_edge) begin
+                        mdio_master_state <= MDIO_MASTER_STATE_READ_REGISTER_DATA;
+                    end
                 end
 
                 MDIO_MASTER_STATE_WRITE_TURNAROUND: begin
