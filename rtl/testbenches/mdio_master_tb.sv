@@ -50,7 +50,7 @@ module mdio_master_tb;
         .reset(0),
 
         .mdio_o(mdio_o),
-        .mdio_i(mdio), // TODO: hook this up to a MDIO BFM
+        .mdio_i(mdio),
         .mdio_t(mdio_t),
         .mdc(mdc),
 
@@ -89,7 +89,7 @@ module mdio_master_tb;
 
         `TEST_CASE("mdio_read_transaction") begin
             automatic int cycle_counter = 0;
-            while (read_finished || cycle_counter < 200) begin
+            while (!read_finished) begin
                 cycle_counter = cycle_counter + 1;
                 @(posedge clk) begin
                     // In the DP83848 PHY I am using, this is the LED control
@@ -111,14 +111,9 @@ module mdio_master_tb;
 
                         read_finished <= 1'b1;
                     end
-
-                    if (read_finished) begin
-                        // check against fixed test register value.
-                        // `CHECK_EQUAL(read_data, REGISTER_TEST_VALUE);
-                    end
                 end
             end
-            `CHECK_EQUAL(0, 0);
+            `CHECK_EQUAL(read_data, 16'hFFFF);
         end
 
         // `TEST_CASE("mdio_write_transaction") begin

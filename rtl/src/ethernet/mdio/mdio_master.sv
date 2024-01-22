@@ -47,12 +47,15 @@ module mdio_master #(
 
         // Clock out register bits in the write case
         MDIO_MASTER_STATE_WRITE_REGISTER_DATA,
+        MDIO_MASTER_STATE_FINISH_WRITE,
 
         // Record returned register data in the read case
-        MDIO_MASTER_STATE_READ_REGISTER_DATA
+        MDIO_MASTER_STATE_READ_REGISTER_DATA,
+        MDIO_MASTER_STATE_FINISH_READ
     } mdio_master_state_t;
 
     var logic [axi_lite.WRITE_DATA_WIDTH-1:0]    write_data;
+    var logic [axi_lite.READ_DATA_WIDTH-1:0]     read_data;
 
     // Signal to tell us if the data is on the line when seeing the first rising
     // edge in an MDIO write transaction. Used in the
@@ -100,8 +103,8 @@ module mdio_master #(
 
     var logic [11:0] preamble_reg;
     var logic [3:0]  preamble_bit_idx;
-    var logic [15:0] mdc_cycle_tracker;
-    var logic        mdio_reg;
+
+    var logic [$clog2(axi_lite.READ_DATA_WIDTH):0] register_bit_idx;
     always_ff @(posedge clk) begin
         if (reset) begin
             mdio_master_state <= MDIO_MASTER_STATE_INIT;
@@ -142,6 +145,7 @@ module mdio_master #(
                     axi_lite.rvalid <= 1'b0;
 
                     preamble_bit_idx <= 4'hb;
+                    register_bit_idx <= axi_lite.READ_DATA_WIDTH - 1;
 
                     // Enter the read/write branch of the state machine
 
@@ -266,12 +270,29 @@ module mdio_master #(
                 end
 
                 MDIO_MASTER_STATE_READ_REGISTER_DATA: begin
-                    // TODO: Sample the data coming back from the PHY on falling clock edges
+                    if (mdc_falling_edge) begin
+                        axi_lite.rdata[register_bit_idx] <= mdio_i;
+                        register_bit_idx <= register_bit_idx - 1;
+                        if (register_bit_idx == 0) begin
+                            register_bit_idx <= axi_lite.READ_DATA_WIDTH - 1;
+
+                            mdio_master_state <= MDIO_MASTER_STATE_FINISH_READ;
+                        end
+                    end
                 end
 
                 MDIO_MASTER_STATE_WRITE_REGISTER_DATA: begin
                     // TODO: clock out the register contents on falling edges
                 end
+
+                MDIO_MASTER_STATE_FINISH_READ: begin
+                    // Mark the data as valid and wait for the data to be consumed
+                    axi_lite.rvalid <= 1'b1;
+                    if (axi_lite.rready && axi_lite.rvalid) begin
+                        mdio_master_state <= MDIO_MASTER_STATE_INIT;
+                    end
+                end
+
                 default: begin
                     mdio_master_state <= MDIO_MASTER_STATE_INIT;
                 end
