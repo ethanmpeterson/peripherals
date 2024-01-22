@@ -132,11 +132,13 @@ module mdio_master_tb;
                     end
                 end
             end
+
             `CHECK_EQUAL(read_data, REG_DATA);
             `CHECK_EQUAL(turnaround_valid, 1'b1);
             `CHECK_EQUAL(opcode, MDIO_READ_OPCODE);
             `CHECK_EQUAL(phy_addr, PHY_ADDRESS);
             `CHECK_EQUAL(reg_addr, REG_ADDRESS);
+
             // TODO: Add an assertion that covers the bus being highZ after the transaction finishes.
 
             // Some changes were made to make the BFM validation pass. Do
@@ -148,6 +150,12 @@ module mdio_master_tb;
             // Potential HW test: do an MDIO read of the LED register in the PHY
             // and map the link LEDs to LEDs on the dev board.
         end
+
+        // TODO: Future test cases.
+        // Do a write and check the provided validity signals on the BFM
+        // Do a full loopback test. Write some data, read it back and assert all
+        // the validity and data is correct.
+
 
         // `TEST_CASE("mdio_write_transaction") begin
         //     `CHECK_EQUAL(0, 0);
