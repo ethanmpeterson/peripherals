@@ -62,7 +62,6 @@ module mdio_slave_bfm #(
             MDIO_SLAVE_BFM_STATE_CHECK_START_COND: begin
                 mdio_t <= 1'b0;
                 mdio_o <= 1'b1;
-
                 // if (mdio_i) begin
                 //     // If the line is asserted, we have received a valid start
                 //     // condition and can proceed to collecting the opcode.
