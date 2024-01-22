@@ -22,7 +22,7 @@ TESTBENCHES = Path(__file__).parent / ".." / "rtl" / "testbenches"
 sources = [
     AXIS / "*.sv",
     AXI_LITE / "*.sv",
-    ETHERNET / "mdio" / "mdio_master.sv",
+    ETHERNET / "mdio" / "*.sv",
     TESTBENCHES / "mdio_master_tb.sv",
 ]
 
