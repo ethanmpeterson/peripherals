@@ -40,8 +40,9 @@ module mdio_master #(
 
         // Not the full two bits, only handles the high Z differentiation case
         MDIO_MASTER_STATE_WRITE_TURNAROUND,
+        MDIO_MASTER_STATE_END_WRITE_TURNAROUND,
         MDIO_MASTER_STATE_READ_TURNAROUND,
-        MDIO_MASTER_STATE_END_TURNAROUND,
+        MDIO_MASTER_STATE_END_READ_TURNAROUND,
 
         // Handles the leading zero prior to a register R/W operation
         MDIO_MASTER_STATE_LEADING_ZERO,
@@ -253,26 +254,47 @@ module mdio_master #(
                     // we receive a leading zero before the register data.
 
                     if (mdc_falling_edge) begin
+                        // Force line into highZ for first turnaround, bit. The
+                        // PHY now should control the line for the remainder of
+                        // the transaction and clock out the data
                         mdio_t <= 1'b1;
                     end
 
                     // Ensure the turn-around is two cycles before we start reading register data
                     if (mdc_falling_edge && mdio_t) begin
-                        mdio_master_state <= MDIO_MASTER_STATE_END_TURNAROUND;
+                        mdio_master_state <= MDIO_MASTER_STATE_END_READ_TURNAROUND;
                     end
 
                     // Improvement: if we don't have a leading zero, add some
                     // cancellation behavior to wait 32 MDC cycles and re-init
                     // the state machine.
                 end
-                MDIO_MASTER_STATE_END_TURNAROUND: begin
+
+                MDIO_MASTER_STATE_END_READ_TURNAROUND: begin
                     if (mdc_falling_edge) begin
                         mdio_master_state <= MDIO_MASTER_STATE_READ_REGISTER_DATA;
                     end
                 end
 
                 MDIO_MASTER_STATE_WRITE_TURNAROUND: begin
-                    // TODO: Needs a driven 10 binary pattern before proceeding to the write data
+                    if (mdc_falling_edge) begin
+                        mdio_o <= 1'b1;
+
+                        mdio_master_state <= MDIO_MASTER_STATE_END_WRITE_TURNAROUND;
+                    end
+                end
+
+                MDIO_MASTER_STATE_END_WRITE_TURNAROUND: begin
+                    if (mdc_falling_edge) begin
+                        mdio_o <= 1'b0;
+
+                        // If the line has transitioned low for the last bit of
+                        // the turnaround sequence, we know we can leave this
+                        // state. Since it is a write, we know the previous value of mdio_o is 1
+                        if (!mdio_o) begin
+                            mdio_master_state <= MDIO_MASTER_STATE_WRITE_REGISTER_DATA;
+                        end
+                    end
                 end
 
                 MDIO_MASTER_STATE_READ_REGISTER_DATA: begin
@@ -288,13 +310,36 @@ module mdio_master #(
                 end
 
                 MDIO_MASTER_STATE_WRITE_REGISTER_DATA: begin
-                    // TODO: clock out the register contents on falling edges
+                    // Start clocking out the data and updating the mdio output on falling edges.
+                    if (mdc_falling_edge) begin
+                        mdio_o <= axi_lite.wdata[register_bit_idx];
+                        register_bit_idx <= register_bit_idx - 1;
+                        if (register_bit_idx == 0) begin
+                            register_bit_idx <= axi_lite.WRITE_DATA_WIDTH - 1;
+
+                            mdio_master_state <= MDIO_MASTER_STATE_FINISH_WRITE;
+                        end
+                    end
                 end
 
                 MDIO_MASTER_STATE_FINISH_READ: begin
                     // Mark the data as valid and wait for the data to be consumed
                     axi_lite.rvalid <= 1'b1;
+                    axi_lite.rresp <= 1'b00;
                     if (axi_lite.rready && axi_lite.rvalid) begin
+                        axi_lite.rvalid <= 1'b0;
+
+                        mdio_master_state <= MDIO_MASTER_STATE_INIT;
+                    end
+                end
+
+                MDIO_MASTER_STATE_FINISH_WRITE: begin
+                    // Tell the AXI Lite Master that the write completed
+                    axi_lite.bresp <= 2'b00;
+                    axi_lite.bvalid <= 1'b1;
+                    if (axi_lite.bready && axi_lite.bvalid) begin
+                        axi_lite.bvalid <= 1'b0;
+
                         mdio_master_state <= MDIO_MASTER_STATE_INIT;
                     end
                 end
