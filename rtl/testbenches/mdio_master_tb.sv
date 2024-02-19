@@ -109,7 +109,6 @@ module mdio_master_tb;
         `TEST_CASE("mdio_read_transaction") begin
             automatic int cycle_counter = 0;
             while (!read_finished) begin
-                cycle_counter = cycle_counter + 1;
                 @(posedge clk) begin
                     // In the DP83848 PHY I am using, this is the LED control
                     // register. The BFM will respond to this as a valid address
@@ -133,18 +132,23 @@ module mdio_master_tb;
                 end
             end
 
+            // wait an extra cycle to catch high z at the end of transaction
+            while (cycle_counter < 1) begin
+                cycle_counter = cycle_counter + 1;
+                @(negedge mdc) begin
+                end
+            end
+
             `CHECK_EQUAL(read_data, REG_DATA);
             `CHECK_EQUAL(turnaround_valid, 1'b1);
             `CHECK_EQUAL(opcode, MDIO_READ_OPCODE);
             `CHECK_EQUAL(phy_addr, PHY_ADDRESS);
             `CHECK_EQUAL(reg_addr, REG_ADDRESS);
+            `CHECK_EQUAL(mdio, 1'bz);
+            
 
             // TODO: Add an assertion that covers the bus being highZ after the transaction finishes.
-
-            // Some changes were made to make the BFM validation pass. Do
-            // another final scrub that this matches the timing diagram in the
-            // datasheet.
-
+            //
             // Start work on the write path in the state machine.
 
             // Potential HW test: do an MDIO read of the LED register in the PHY

@@ -28,7 +28,7 @@ module mdio_master #(
     // diagram in page 34 of the PHY datasheet in the docs folder.
     typedef enum int {
         MDIO_MASTER_STATE_INIT,
-
+        MDIO_MASTER_STATE_WAIT_FOR_REQUEST,
         MDIO_MASTER_STATE_WAIT_FOR_WRITE_DATA,
 
         // The following states match the definition in the PHY datasheet (pg.
@@ -53,7 +53,8 @@ module mdio_master #(
 
         // Record returned register data in the read case
         MDIO_MASTER_STATE_READ_REGISTER_DATA,
-        MDIO_MASTER_STATE_FINISH_READ
+        MDIO_MASTER_STATE_FINISH_READ,
+        MDIO_MASTER_STATE_END_TRANSACTION
     } mdio_master_state_t;
 
     var logic [axi_lite.WRITE_DATA_WIDTH-1:0]    write_data;
@@ -149,6 +150,15 @@ module mdio_master #(
                     preamble_bit_idx <= 4'hb;
                     register_bit_idx <= axi_lite.READ_DATA_WIDTH - 1;
 
+                    mdio_master_state <= MDIO_MASTER_STATE_WAIT_FOR_REQUEST;
+                end
+
+                // MDIO_MASTER_SYNCHRONIZE_PHY: begin
+                //     // NOTE: this preamble is specific to the DP83848x PHY on my
+                //     // board, this state could be removed with other hardware
+                // end
+
+                MDIO_MASTER_STATE_WAIT_FOR_REQUEST: begin
                     // Enter the read/write branch of the state machine
 
                     // NOTE: that if a valid read and write address arrive in
@@ -250,8 +260,6 @@ module mdio_master #(
                 end
 
                 MDIO_MASTER_STATE_READ_TURNAROUND: begin
-                    // TODO: Place the master MDIO line in tri-state check that
-                    // we receive a leading zero before the register data.
 
                     if (mdc_falling_edge) begin
                         // Force line into highZ for first turnaround, bit. The
@@ -323,25 +331,29 @@ module mdio_master #(
                 end
 
                 MDIO_MASTER_STATE_FINISH_READ: begin
+                    mdio_t <= 1'b1;
                     // Mark the data as valid and wait for the data to be consumed
                     axi_lite.rvalid <= 1'b1;
                     axi_lite.rresp <= 1'b00;
                     if (axi_lite.rready && axi_lite.rvalid) begin
                         axi_lite.rvalid <= 1'b0;
 
-                        mdio_master_state <= MDIO_MASTER_STATE_INIT;
+                        mdio_master_state <= MDIO_MASTER_STATE_END_TRANSACTION;
                     end
                 end
 
                 MDIO_MASTER_STATE_FINISH_WRITE: begin
+                    mdio_t <= 1'b1;
                     // Tell the AXI Lite Master that the write completed
                     axi_lite.bresp <= 2'b00;
                     axi_lite.bvalid <= 1'b1;
                     if (axi_lite.bready && axi_lite.bvalid) begin
                         axi_lite.bvalid <= 1'b0;
-
-                        mdio_master_state <= MDIO_MASTER_STATE_INIT;
+                        mdio_master_state <= MDIO_MASTER_STATE_END_TRANSACTION;
                     end
+                end
+
+                MDIO_MASTER_STATE_END_TRANSACTION: begin
                 end
 
                 default: begin
