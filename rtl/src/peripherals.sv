@@ -168,14 +168,17 @@ module peripherals (
     //     end
     // end
 
-    // TODO: build out a bigger ILA and determine why the state machine is not progressing past a bus idle state
+    // TODO: build out a bigger ILA and determine why the state machine is not
+    // progressing past a bus idle state
+
+    // ANOTHER THOUGHT: simplify further with a hardcoded transaction module.
+    // Fool proof way to test the LEDs
     ila_mii ila_mii_inst (
-	      .clk(udp_sys_clk), // input wire clk
+        .clk(udp_sys_clk), // input wire clk
 
-
-	      .probe0(eth_mdio), // input wire [3:0]  probe0  
-	      .probe1(eth_mdc), // input wire [0:0]  probe1 
-	      .probe2(mdio_axil.awready) // input wire [0:0]  probe2
+        .probe0(eth_mdio), // input wire [3:0]  probe0  
+        .probe1(eth_mdc), // input wire [0:0]  probe1 
+        .probe2(mdio_axil.wready) // input wire [0:0]  probe2
     );
 
     always_ff @(posedge udp_sys_clk) begin
