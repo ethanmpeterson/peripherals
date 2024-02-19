@@ -34,6 +34,7 @@ module mdio_master_tb;
 
     var logic[15:0] read_data;
     var logic       read_finished = 1'b0;
+    var logic       write_finished = 1'b0;
 
     always begin
         #10
@@ -63,10 +64,11 @@ module mdio_master_tb;
         .axi_lite(mdio_axil.Slave)
     );
 
-    var logic [4:0] phy_addr;
-    var logic [4:0] reg_addr;
-    var logic [1:0] opcode;
-    var logic       turnaround_valid;
+    var logic [4:0]  phy_addr;
+    var logic [4:0]  reg_addr;
+    var logic [1:0]  opcode;
+    var logic        turnaround_valid;
+    var logic [15:0] received_data;
     mdio_slave_bfm #(
         .PHY_ADDRESS(PHY_ADDRESS),
         .TEST_REG_ADDRESS(REG_ADDRESS),
@@ -81,7 +83,8 @@ module mdio_master_tb;
         .opcode(opcode),
         .phy_addr(phy_addr),
         .reg_addr(reg_addr),
-        .turnaround_valid(turnaround_valid)
+        .turnaround_valid(turnaround_valid),
+        .received_data(received_data)
     );
 
     `TEST_SUITE begin
@@ -104,6 +107,8 @@ module mdio_master_tb;
             mdio_axil.arvalid = 0;
 
             mdio_axil.rready = 0;
+            write_finished = 0;
+            read_finished = 0;
         end
 
         `TEST_CASE("mdio_read_transaction") begin
@@ -145,14 +150,42 @@ module mdio_master_tb;
             `CHECK_EQUAL(phy_addr, PHY_ADDRESS);
             `CHECK_EQUAL(reg_addr, REG_ADDRESS);
             `CHECK_EQUAL(mdio, 1'bz);
-            
+        end
 
-            // TODO: Add an assertion that covers the bus being highZ after the transaction finishes.
-            //
-            // Start work on the write path in the state machine.
 
-            // Potential HW test: do an MDIO read of the LED register in the PHY
-            // and map the link LEDs to LEDs on the dev board.
+        `TEST_CASE("mdio_write_transaction") begin
+            while (!write_finished) begin
+                @(posedge clk) begin
+                    // In the DP83848 PHY I am using, this is the LED control
+                    // register. The BFM will respond to this as a valid address
+                    // with fake data
+                    mdio_axil.awaddr <= 5'h18;
+                    mdio_axil.awvalid <= 1'b1;
+                    if (mdio_axil.awready && mdio_axil.awvalid) begin
+                        // finish writing the address and proceed to wait for the register's data
+                        mdio_axil.awvalid <= 1'b0;
+                    end
+
+                    mdio_axil.wdata <= REG_DATA;
+                    mdio_axil.wvalid <= 1'b1;
+                    mdio_axil.bready <= 1'b1;
+                    if (mdio_axil.bready && mdio_axil.bvalid) begin
+                        write_finished <= 1'b1;
+                    end
+                end
+            end
+
+            `CHECK_EQUAL(received_data, REG_DATA);
+            `CHECK_EQUAL(turnaround_valid, 1'b1);
+            `CHECK_EQUAL(opcode, MDIO_WRITE_OPCODE);
+            `CHECK_EQUAL(phy_addr, PHY_ADDRESS);
+            `CHECK_EQUAL(reg_addr, REG_ADDRESS);
+            `CHECK_EQUAL(mdio, 1'bz);
+
+        end
+
+        `TEST_CASE("mdio_write_read_combined") begin
+            `CHECK_EQUAL(0, 0);
         end
 
         // TODO: Future test cases.
@@ -160,10 +193,6 @@ module mdio_master_tb;
         // Do a full loopback test. Write some data, read it back and assert all
         // the validity and data is correct.
 
-
-        // `TEST_CASE("mdio_write_transaction") begin
-        //     `CHECK_EQUAL(0, 0);
-        // end
     end
 
     `WATCHDOG(0.1ms);

@@ -20,6 +20,7 @@ module mdio_slave_bfm #(
     output var logic [1:0] opcode,
     output var logic [4:0] phy_addr,
     output var logic [4:0] reg_addr,
+    output var logic [15:0] received_data,
     output var logic turnaround_valid
 );
 
@@ -51,7 +52,9 @@ module mdio_slave_bfm #(
 
         MDIO_SLAVE_BFM_STATE_SEND_READ_DATA,
         MDIO_SLAVE_BFM_STATE_FINISH_READ,
-        MDIO_SLAVE_BFM_STATE_COLLECT_WRITE_DATA
+
+        MDIO_SLAVE_BFM_STATE_COLLECT_WRITE_DATA,
+        MDIO_SLAVE_BFM_STATE_FINISH_WRITE
     } mdio_slave_bfm_state_t;
 
     mdio_slave_bfm_state_t mdio_slave_bfm_state = MDIO_SLAVE_BFM_STATE_INIT;
@@ -156,9 +159,14 @@ module mdio_slave_bfm #(
                 if (opcode == 2'b10) begin
                     mdio_t <= 1'b0;
                     mdio_o <= 1'b0;
+
+                    mdio_slave_bfm_state <= MDIO_SLAVE_BFM_STATE_SEND_READ_DATA;
+                end else begin
+                    mdio_t <= 1'b1;
+
+                    mdio_slave_bfm_state <= MDIO_SLAVE_BFM_STATE_COLLECT_WRITE_DATA;
                 end
 
-                mdio_slave_bfm_state <= MDIO_SLAVE_BFM_STATE_SEND_READ_DATA;
                 turnaround_valid <= 1'b1;
             end
 
@@ -176,6 +184,22 @@ module mdio_slave_bfm #(
                 mdio_slave_bfm_state <= MDIO_SLAVE_BFM_STATE_INIT;
             end
 
+            MDIO_SLAVE_BFM_STATE_COLLECT_WRITE_DATA: begin
+                received_data[register_bit_idx] <= mdio_i;
+                register_bit_idx <= register_bit_idx - 1;
+
+                if (register_bit_idx == 0) begin
+                    mdio_slave_bfm_state <= MDIO_SLAVE_BFM_STATE_FINISH_WRITE;
+                end
+            end
+
+            MDIO_SLAVE_BFM_STATE_FINISH_WRITE: begin
+                mdio_slave_bfm_state <= MDIO_SLAVE_BFM_STATE_INIT;
+            end
+
+            default: begin
+                mdio_slave_bfm_state <= MDIO_SLAVE_BFM_STATE_INIT;
+            end
         endcase
 
         if (reset) begin
