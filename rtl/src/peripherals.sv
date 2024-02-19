@@ -21,7 +21,7 @@ module peripherals (
     input var logic eth_crs,
 
     output var logic eth_mdc,
-    output var logic eth_mdio,
+    inout wire eth_mdio,
 
     output var logic eth_ref_clk,
     output var logic eth_rstn,
@@ -37,6 +37,7 @@ module peripherals (
 
     output var logic[3:0] led
 );
+
     assign eth_rstn = 1'b1;
     // Configure PHY clocks generates a 25 MHz clock for the PHY
     eth_phy_clk phy_clk_div (
@@ -115,6 +116,84 @@ module peripherals (
         .cobs_encoded_stream(cobs_stream.Source)
     );
 
+    // MDIO Master to talk to ethernet PHY
+    localparam PHY_ADDRESS = 5'h0c;
+    localparam REG_ADDRESS = 5'h18;
+    localparam REG_DATA    = 16'b0000000000_110000;
+
+    var logic  mdio_o;
+    var logic  mdio_i;
+    var logic  mdio_t;
+
+    assign eth_mdio = mdio_t ? 1'bz : mdio_o;
+    assign mdio_i = eth_mdio;
+
+    axi_lite_interface #(
+        .READ_ADDRESS_WIDTH(5),
+        .READ_DATA_WIDTH(16),
+
+        .WRITE_ADDRESS_WIDTH(5),
+        .WRITE_DATA_WIDTH(16)
+    ) mdio_axil ();
+
+    mdio_master #(
+        .CLKS_PER_BIT(125),
+        .PHY_ADDRESS(PHY_ADDRESS)
+    ) mdio_master_inst (
+        .clk(udp_sys_clk),
+        .reset(0),
+
+        .mdio_o(mdio_o),
+        .mdio_i(mdio_i),
+        .mdio_t(mdio_t),
+        .mdc(eth_mdc),
+
+        .axi_lite(mdio_axil.Slave)
+    );
+
+    // always_ff @(posedge udp_sys_clk) begin
+    //     mdio_axil.araddr <= 5'h10;
+    //     mdio_axil.arvalid <= 1'b1;
+    //     if (mdio_axil.arready && mdio_axil.arvalid) begin
+    //         // finish writing the address and proceed to wait for the register's data
+    //         mdio_axil.arvalid <= 1'b0;
+
+    //         // Indicate the master is ready to accept the read data
+    //         mdio_axil.rready <= 1'b1;
+    //     end
+
+    //     if (mdio_axil.rready && mdio_axil.rvalid) begin
+    //         led[0] <= mdio_axil.rdata[0];
+    //         mdio_axil.rready <= 1'b0;
+    //     end
+    // end
+
+    // TODO: build out a bigger ILA and determine why the state machine is not progressing past a bus idle state
+    ila_mii ila_mii_inst (
+	      .clk(udp_sys_clk), // input wire clk
+
+
+	      .probe0(eth_mdio), // input wire [3:0]  probe0  
+	      .probe1(eth_mdc), // input wire [0:0]  probe1 
+	      .probe2(mdio_axil.awready) // input wire [0:0]  probe2
+    );
+
+    always_ff @(posedge udp_sys_clk) begin
+        mdio_axil.awaddr <= REG_ADDRESS;
+        mdio_axil.awvalid <= 1'b1;
+        if (mdio_axil.awready && mdio_axil.awvalid) begin
+            // Finish writing the reg address and wait to write data
+            mdio_axil.awvalid <= 1'b0;
+        end
+
+        mdio_axil.wdata <= REG_DATA;
+        mdio_axil.wvalid <= 1'b1;
+        if (mdio_axil.wready && mdio_axil.wvalid) begin
+            // Finish writing register data to the module
+            mdio_axil.wvalid <= 1'b0;
+        end
+    end
+
     // AXI between MAC and Ethernet modules
     // var logic [7:0] rx_axis_tdata;
     // var logic rx_axis_tvalid;
@@ -172,14 +251,6 @@ module peripherals (
     //     .cfg_rx_enable(1'b1)
     // );
 
-    // ila_mii ila_mii_inst (
-	  //     .clk(eth_rx_clk), // input wire clk
-
-
-	  //     .probe0(eth_rxd), // input wire [3:0]  probe0  
-	  //     .probe1(eth_rx_dv), // input wire [0:0]  probe1 
-	  //     .probe2(eth_rxerr) // input wire [0:0]  probe2
-    // );
 
     // ethernet Mac test instance
     // Use default 8 bit interface
@@ -225,12 +296,12 @@ module peripherals (
     //     .phy_mii(mii_signals)
     // );
 
-    udp_rx_example udp_rx_example_inst (
-        .udp_sys_clk(udp_sys_clk),
-        .system_reset(system_reset),
-        .phy_mii(mii_signals),
-        .led(led)
-    );
+    // udp_rx_example udp_rx_example_inst (
+    //     .udp_sys_clk(udp_sys_clk),
+    //     .system_reset(system_reset),
+    //     .phy_mii(mii_signals),
+    //     .led(led)
+    // );
 
     // udp_echo_example udp_echo_example_inst (
     //     .udp_sys_clk(udp_sys_clk),
