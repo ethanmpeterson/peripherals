@@ -27,6 +27,7 @@ module mdio_master #(
     // packet to send out the MDIO/MDC signal For background consult the timing
     // diagram in page 34 of the PHY datasheet in the docs folder.
     typedef enum int {
+        MDIO_MASTER_STATE_PHY_SPECIFIC,
         MDIO_MASTER_STATE_INIT,
         MDIO_MASTER_STATE_WAIT_FOR_REQUEST,
         MDIO_MASTER_STATE_WAIT_FOR_WRITE_DATA,
@@ -107,18 +108,28 @@ module mdio_master #(
     var logic [11:0] preamble_reg;
     var logic [3:0]  preamble_bit_idx;
 
+    var logic [7:0]  phy_specific_cycle_counter = 0;
     var logic [$clog2(axi_lite.READ_DATA_WIDTH):0] register_bit_idx;
+
     always_ff @(posedge clk) begin
         if (reset) begin
             mdio_master_state <= MDIO_MASTER_STATE_INIT;
         end else begin
             case (mdio_master_state)
-                MDIO_MASTER_STATE_INIT: begin
-                    // NOTE: allow at least 32 MDC clock cycles between
-                    // transactions in the case that an invalid command is
-                    // provided to the PHY. This is the amount of time it takes
-                    // to re-synchronize
+                MDIO_MASTER_STATE_PHY_SPECIFIC: begin
+                    mdio_t <= 1'b1;
+                    // TI DP83848 PHY needs a 32 clock cycle preamble where the bus is idle.
+                    // Wait in this state for 32 cycles, could be removed depending on the PHY.
+                    if (mdc_rising_edge) begin
+                        phy_specific_cycle_counter <= phy_specific_cycle_counter + 1;
+                    end
 
+                    if (phy_specific_cycle_counter > 32) begin
+                        phy_specific_cycle_counter <= 0;
+                        mdio_master_state <= MDIO_MASTER_STATE_INIT;
+                    end
+                end
+                MDIO_MASTER_STATE_INIT: begin
                     // tristate the output while the module is initializing
                     mdio_o <= 1'b0;
                     mdio_t <= 1'b1;
@@ -360,7 +371,7 @@ module mdio_master #(
                 MDIO_MASTER_STATE_END_TRANSACTION: begin
                     if (mdc_falling_edge) begin
                         // force a cycle in between transactions
-                        mdio_master_state <= MDIO_MASTER_STATE_INIT;
+                        mdio_master_state <= MDIO_MASTER_STATE_PHY_SPECIFIC;
                     end
                 end
 
