@@ -212,7 +212,7 @@ module mdio_master #(
                         axi_lite.wready <= 1'b0;
 
                         // Start the MDIO write now that we have all the information
-                        mdio_master_state <= MDIO_MASTER_STATE_PREAMBLE;
+                        mdio_master_state <= MDIO_MASTER_STATE_START_CONDITION;
                     end
                 end
 
@@ -299,9 +299,7 @@ module mdio_master #(
                         // If the line has transitioned low for the last bit of
                         // the turnaround sequence, we know we can leave this
                         // state. Since it is a write, we know the previous value of mdio_o is 1
-                        if (!mdio_o) begin
-                            mdio_master_state <= MDIO_MASTER_STATE_WRITE_REGISTER_DATA;
-                        end
+                        mdio_master_state <= MDIO_MASTER_STATE_WRITE_REGISTER_DATA;
                     end
                 end
 
@@ -343,17 +341,27 @@ module mdio_master #(
                 end
 
                 MDIO_MASTER_STATE_FINISH_WRITE: begin
-                    mdio_t <= 1'b1;
-                    // Tell the AXI Lite Master that the write completed
-                    axi_lite.bresp <= 2'b00;
-                    axi_lite.bvalid <= 1'b1;
-                    if (axi_lite.bready && axi_lite.bvalid) begin
-                        axi_lite.bvalid <= 1'b0;
-                        mdio_master_state <= MDIO_MASTER_STATE_END_TRANSACTION;
+                    if (mdc_falling_edge) begin
+                        mdio_t <= 1'b1;
+                    end
+
+                    // After we have transmitted the last bit and gone high z then we can end the transaction
+                    if (mdio_t && mdc_falling_edge) begin
+                        // Tell the AXI Lite Master that the write completed
+                        axi_lite.bresp <= 2'b00;
+                        axi_lite.bvalid <= 1'b1;
+                        if (axi_lite.bready && axi_lite.bvalid) begin
+                            axi_lite.bvalid <= 1'b0;
+                            mdio_master_state <= MDIO_MASTER_STATE_END_TRANSACTION;
+                        end
                     end
                 end
 
                 MDIO_MASTER_STATE_END_TRANSACTION: begin
+                    if (mdc_falling_edge) begin
+                        // force a cycle in between transactions
+                        mdio_master_state <= MDIO_MASTER_STATE_INIT;
+                    end
                 end
 
                 default: begin
