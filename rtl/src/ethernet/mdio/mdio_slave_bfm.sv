@@ -65,14 +65,14 @@ module mdio_slave_bfm #(
                 phy_addr <= 5'b00000;
                 reg_addr <= 5'b00000;
 
-                // Hold the mdio line in high
+                // Hold the mdio line in high z
                 mdio_t <= 1'b1;
                 mdio_o <= 1'b0;
 
                 register_data <= REGISTER_TEST_DATA;
                 register_bit_idx <= 4'hF;
 
-                if (!mdio_i) begin
+                if (!mdio_i && !(mdio_i === 1'bz)) begin
                     mdio_slave_bfm_state <= MDIO_SLAVE_BFM_STATE_WAIT_FOR_START;
                 end
             end
