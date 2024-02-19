@@ -21,6 +21,7 @@ module peripherals (
     input var logic eth_crs,
 
     output var logic eth_mdc,
+
     /* svlint off keyword_forbidden_wire_reg */
     inout wire eth_mdio,
     /* svlint on keyword_forbidden_wire_reg */
@@ -119,10 +120,6 @@ module peripherals (
     );
 
     // MDIO Master to talk to ethernet PHY
-    localparam PHY_ADDRESS = 5'h0c;
-    localparam REG_ADDRESS = 5'h18;
-    localparam REG_DATA    = 16'b0000000000_110000;
-
     var logic  mdio_o;
     var logic  mdio_i;
     var logic  mdio_t;
@@ -138,66 +135,54 @@ module peripherals (
         .WRITE_DATA_WIDTH(16)
     ) mdio_axil ();
 
-    mdio_master #(
-        .CLKS_PER_BIT(125),
-        .PHY_ADDRESS(PHY_ADDRESS)
-    ) mdio_master_inst (
+    mdio_writer #(
+        .CLKS_PER_BIT(125)
+    ) mdio_writer_inst (
         .clk(udp_sys_clk),
         .reset(0),
 
         .mdio_o(mdio_o),
         .mdio_i(mdio_i),
         .mdio_t(mdio_t),
-        .mdc(eth_mdc),
-
-        .axi_lite(mdio_axil.Slave)
+        .mdc(eth_mdc)
     );
 
-    // always_ff @(posedge udp_sys_clk) begin
-    //     mdio_axil.araddr <= 5'h10;
-    //     mdio_axil.arvalid <= 1'b1;
-    //     if (mdio_axil.arready && mdio_axil.arvalid) begin
-    //         // finish writing the address and proceed to wait for the register's data
-    //         mdio_axil.arvalid <= 1'b0;
+    // mdio_master_ip
+    //     mdio_master_ip_inst (
+    //         .clk(udp_sys_clk),
+    //         .rst(0),
 
-    //         // Indicate the master is ready to accept the read data
-    //         mdio_axil.rready <= 1'b1;
-    //     end
+    //         .cmd_phy_addr(5'b00001),
+    //         .cmd_reg_addr(5'h18),
+    //         .cmd_data(16'b0000000000_11_0_11_0),
+    //         .cmd_opcode(2'b01),
+    //         .cmd_valid(1),
+    //         .cmd_ready(),
 
-    //     if (mdio_axil.rready && mdio_axil.rvalid) begin
-    //         led[0] <= mdio_axil.rdata[0];
-    //         mdio_axil.rready <= 1'b0;
-    //     end
-    // end
+    //         .data_out(),
+    //         .data_out_valid(),
+    //         .data_out_ready(1'b1),
 
-    // TODO: build out a bigger ILA and determine why the state machine is not
-    // progressing past a bus idle state
+    //         .mdc_o(eth_mdc),
+    //         .mdio_i(mdio_i),
+    //         .mdio_o(mdio_o),
+    //         .mdio_t(mdio_t),
 
-    // ANOTHER THOUGHT: simplify further with a hardcoded transaction module.
-    // Fool proof way to test the LEDs
-    ila_mii ila_mii_inst (
-        .clk(udp_sys_clk), // input wire clk
+    //         .busy(),
 
-        .probe0(eth_mdio), // input wire [3:0]  probe0  
-        .probe1(eth_mdc), // input wire [0:0]  probe1 
-        .probe2(mdio_axil.wready) // input wire [0:0]  probe2
+    //         .prescale(8'd3)
+    //     );
+
+    // TODO: ILA this
+    ila_mdio_writer your_instance_name (
+	    .clk(udp_sys_clk), // input wire clk
+
+
+	    .probe0(eth_mdc), // input wire [0:0]  probe0
+	    .probe1(mdio_o), // input wire [0:0]  probe1
+	    .probe2(mdio_t), // input wire [0:0]  probe2
+	    .probe3(eth_mdio) // input wire [0:0]  probe3
     );
-
-    always_ff @(posedge udp_sys_clk) begin
-        mdio_axil.awaddr <= REG_ADDRESS;
-        mdio_axil.awvalid <= 1'b1;
-        if (mdio_axil.awready && mdio_axil.awvalid) begin
-            // Finish writing the reg address and wait to write data
-            mdio_axil.awvalid <= 1'b0;
-        end
-
-        mdio_axil.wdata <= REG_DATA;
-        mdio_axil.wvalid <= 1'b1;
-        if (mdio_axil.wready && mdio_axil.wvalid) begin
-            // Finish writing register data to the module
-            mdio_axil.wvalid <= 1'b0;
-        end
-    end
 
     // AXI between MAC and Ethernet modules
     // var logic [7:0] rx_axis_tdata;

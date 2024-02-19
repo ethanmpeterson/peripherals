@@ -3,8 +3,7 @@
 
 module mdio_writer #(
     // Assumes we are provided a 125 MHz sys clk and gives an effective data rate of 1 Mbps
-    parameter CLKS_PER_BIT = 125,
-    parameter PHY_ADDRESS = 5'h0c
+    parameter CLKS_PER_BIT = 125
 ) (
     input var  logic clk,
     input var  logic reset,
@@ -74,6 +73,7 @@ module mdio_writer #(
 
     mdio_writer_state_t mdio_writer_state = MDIO_WRITER_STATE_INIT;
 
+    initial mdc = 0;
     always_ff @(posedge clk) begin
         if (cycle_counter == CLKS_PER_BIT) begin
             // reset the counter
@@ -112,13 +112,8 @@ module mdio_writer #(
                 case (mdio_writer_state)
                     MDIO_WRITER_STATE_INIT: begin
                         // Assign test write data to shut off both LEDs on the eth port
-                        phy_address <= 5'h0c;
-                        write_data[15:6] <= 0;
-                        write_data[5] <= 1'b1;
-                        write_data[4] <= 1'b1;
-                        write_data[3] <= 1'b0;
-                        write_data[2:0] <= 3'b000;
-
+                        phy_address <= 5'b00001;
+                        write_data <= 16'b0000000000_11_0_00_0;
                         register_address <= 5'h18;
 
                         idle_cycle_counter <= 0;
@@ -130,6 +125,7 @@ module mdio_writer #(
                     end
 
                     MDIO_WRITER_STATE_IDLE: begin
+                        mdio_t <= 1'b1;
                         idle_cycle_counter <= idle_cycle_counter + 1;
 
                         if (idle_cycle_counter > 32) begin
@@ -234,51 +230,68 @@ module mdio_writer #(
                     // REGISTER INPUT DATA
                     MDIO_WRITER_STATE_DATA15: begin
                         mdio_o <= write_data[15];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA14;
                     end
                     MDIO_WRITER_STATE_DATA14: begin
                         mdio_o <= write_data[14];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA13;
                     end
                     MDIO_WRITER_STATE_DATA13: begin
                         mdio_o <= write_data[13];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA12;
                     end
                     MDIO_WRITER_STATE_DATA12: begin
                         mdio_o <= write_data[12];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA11;
                     end
                     MDIO_WRITER_STATE_DATA11: begin
                         mdio_o <= write_data[11];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA10;
                     end
                     MDIO_WRITER_STATE_DATA10: begin
                         mdio_o <= write_data[10];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA9;
                     end
                     MDIO_WRITER_STATE_DATA9: begin
                         mdio_o <= write_data[9];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA8;
                     end
                     MDIO_WRITER_STATE_DATA8: begin
                         mdio_o <= write_data[8];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA7;
                     end
                     MDIO_WRITER_STATE_DATA7: begin
                         mdio_o <= write_data[7];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA6;
                     end
                     MDIO_WRITER_STATE_DATA6: begin
                         mdio_o <= write_data[6];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA5;
                     end
                     MDIO_WRITER_STATE_DATA5: begin
                         mdio_o <= write_data[5];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA4;
                     end
                     MDIO_WRITER_STATE_DATA4: begin
                         mdio_o <= write_data[4];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA3;
                     end
                     MDIO_WRITER_STATE_DATA3: begin
                         mdio_o <= write_data[3];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA2;
                     end
                     MDIO_WRITER_STATE_DATA2: begin
                         mdio_o <= write_data[2];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA1;
                     end
                     MDIO_WRITER_STATE_DATA1: begin
                         mdio_o <= write_data[1];
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA0;
                     end
                     MDIO_WRITER_STATE_DATA0: begin
                         mdio_o <= write_data[0];
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_IDLE;
                     end
 
                     default: begin
