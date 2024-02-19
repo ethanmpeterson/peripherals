@@ -21,7 +21,9 @@ module peripherals (
     input var logic eth_crs,
 
     output var logic eth_mdc,
+    /* svlint off keyword_forbidden_wire_reg */
     inout wire eth_mdio,
+    /* svlint on keyword_forbidden_wire_reg */
 
     output var logic eth_ref_clk,
     output var logic eth_rstn,

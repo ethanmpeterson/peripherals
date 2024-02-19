@@ -143,93 +143,142 @@ module mdio_writer #(
                     MDIO_WRITER_STATE_START1: begin
                         mdio_t <= 1'b0;
                         mdio_o <= 1'b0;
-                    end
 
+                        mdio_writer_state <= MDIO_WRITER_STATE_START0;
+                    end
                     MDIO_WRITER_STATE_START0: begin
                         mdio_o <= 1'b1;
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_OPCODE1;
                     end
 
                     // OPCODE
                     MDIO_WRITER_STATE_OPCODE1: begin
                         mdio_o <= 1'b0;
-                    end
 
+                        mdio_writer_state <= MDIO_WRITER_STATE_OPCODE0;
+                    end
                     MDIO_WRITER_STATE_OPCODE0: begin
                         mdio_o <= 1'b1;
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_PHY_ADDR4;
                     end
 
                     // PHY ADDRESS
                     MDIO_WRITER_STATE_PHY_ADDR4: begin
                         mdio_o <= phy_address[4];
-                    end
 
+                        mdio_writer_state <= MDIO_WRITER_STATE_PHY_ADDR3;
+                    end
                     MDIO_WRITER_STATE_PHY_ADDR3: begin
                         mdio_o <= phy_address[3];
-                    end
 
+                        mdio_writer_state <= MDIO_WRITER_STATE_PHY_ADDR2;
+                    end
                     MDIO_WRITER_STATE_PHY_ADDR2: begin
                         mdio_o <= phy_address[2];
-                    end
 
+                        mdio_writer_state <= MDIO_WRITER_STATE_PHY_ADDR1;
+                    end
                     MDIO_WRITER_STATE_PHY_ADDR1: begin
                         mdio_o <= phy_address[1];
-                    end
 
+                        mdio_writer_state <= MDIO_WRITER_STATE_PHY_ADDR0;
+                    end
                     MDIO_WRITER_STATE_PHY_ADDR0: begin
                         mdio_o <= phy_address[0];
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_REG_ADDR4;
                     end
 
 
                     // REGISTER ADDRESS
                     MDIO_WRITER_STATE_REG_ADDR4: begin
+                        mdio_o <= register_address[4];
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_REG_ADDR3;
                     end
                     MDIO_WRITER_STATE_REG_ADDR3: begin
+                        mdio_o <= register_address[3];
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_REG_ADDR2;
                     end
                     MDIO_WRITER_STATE_REG_ADDR2: begin
+                        mdio_o <= register_address[2];
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_REG_ADDR1;
                     end
                     MDIO_WRITER_STATE_REG_ADDR1: begin
+                        mdio_o <= register_address[1];
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_REG_ADDR0;
                     end
                     MDIO_WRITER_STATE_REG_ADDR0: begin
+                        mdio_o <= register_address[0];
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_TA1;
                     end
 
                     // TURNAROUND BITS
                     MDIO_WRITER_STATE_TA1: begin
+                        mdio_o <= 1'b1;
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_TA0;
                     end
                     MDIO_WRITER_STATE_TA0: begin
+                        mdio_o <= 1'b0;
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_DATA15;
                     end
 
                     // REGISTER INPUT DATA
                     MDIO_WRITER_STATE_DATA15: begin
+                        mdio_o <= write_data[15];
                     end
                     MDIO_WRITER_STATE_DATA14: begin
+                        mdio_o <= write_data[14];
                     end
                     MDIO_WRITER_STATE_DATA13: begin
+                        mdio_o <= write_data[13];
                     end
                     MDIO_WRITER_STATE_DATA12: begin
+                        mdio_o <= write_data[12];
                     end
                     MDIO_WRITER_STATE_DATA11: begin
+                        mdio_o <= write_data[11];
                     end
                     MDIO_WRITER_STATE_DATA10: begin
+                        mdio_o <= write_data[10];
                     end
                     MDIO_WRITER_STATE_DATA9: begin
+                        mdio_o <= write_data[9];
                     end
                     MDIO_WRITER_STATE_DATA8: begin
+                        mdio_o <= write_data[8];
                     end
                     MDIO_WRITER_STATE_DATA7: begin
+                        mdio_o <= write_data[7];
                     end
                     MDIO_WRITER_STATE_DATA6: begin
+                        mdio_o <= write_data[6];
                     end
                     MDIO_WRITER_STATE_DATA5: begin
+                        mdio_o <= write_data[5];
                     end
                     MDIO_WRITER_STATE_DATA4: begin
+                        mdio_o <= write_data[4];
                     end
                     MDIO_WRITER_STATE_DATA3: begin
+                        mdio_o <= write_data[3];
                     end
                     MDIO_WRITER_STATE_DATA2: begin
+                        mdio_o <= write_data[2];
                     end
                     MDIO_WRITER_STATE_DATA1: begin
+                        mdio_o <= write_data[1];
                     end
                     MDIO_WRITER_STATE_DATA0: begin
+                        mdio_o <= write_data[0];
                     end
 
                     default: begin
