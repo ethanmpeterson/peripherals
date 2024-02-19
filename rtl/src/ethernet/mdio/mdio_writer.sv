@@ -14,9 +14,7 @@ module mdio_writer #(
     output var logic mdio_o,
     output var logic mdio_t,
 
-    output var logic mdc,
-
-    axi_lite_interface.Slave axi_lite
+    output var logic mdc
 );
 
     typedef enum int {
@@ -64,6 +62,8 @@ module mdio_writer #(
     } mdio_writer_state_t;
 
     var logic [15:0] write_data;
+    var logic [4:0]  register_address;
+    var logic [4:0]  phy_address;
 
     // Generate MDC clock line.
     localparam                                  CYCLE_COUNTER_REG_WIDTH = $clog2(CLKS_PER_BIT);
@@ -72,10 +72,10 @@ module mdio_writer #(
     var logic                                   mdc_rising_edge = 1'b0;
     var logic                                   mdc_falling_edge = 1'b0;
 
-    mdio_writer_state_t mdio_master_state = MDIO_WRITER_STATE_INIT;
+    mdio_writer_state_t mdio_writer_state = MDIO_WRITER_STATE_INIT;
 
     always_ff @(posedge clk) begin
-        if (cycle_counter == CLKS_PER_BIT/2) begin
+        if (cycle_counter == CLKS_PER_BIT) begin
             // reset the counter
             cycle_counter <= 0;
 
@@ -103,16 +103,140 @@ module mdio_writer #(
         end
     end
 
+    var logic [7:0] idle_cycle_counter;
     always_ff @(posedge clk) begin
         if (reset) begin
             mdio_writer_state <= MDIO_WRITER_STATE_INIT;
         end else begin
-            case (mdio_writer_state)
-                mdio
-                default: begin
-                    mdio_master_state <= MDIO_WRITER_STATE_INIT;
-                end
-            endcase
+            if (mdc_falling_edge) begin
+                case (mdio_writer_state)
+                    MDIO_WRITER_STATE_INIT: begin
+                        // Assign test write data to shut off both LEDs on the eth port
+                        phy_address <= 5'h0c;
+                        write_data[15:6] <= 0;
+                        write_data[5] <= 1'b1;
+                        write_data[4] <= 1'b1;
+                        write_data[3] <= 1'b0;
+                        write_data[2:0] <= 3'b000;
+
+                        register_address <= 5'h18;
+
+                        idle_cycle_counter <= 0;
+
+                        mdio_t <= 1'b1;
+                        mdio_o <= 1'b0;
+
+                        mdio_writer_state <= MDIO_WRITER_STATE_IDLE;
+                    end
+
+                    MDIO_WRITER_STATE_IDLE: begin
+                        idle_cycle_counter <= idle_cycle_counter + 1;
+
+                        if (idle_cycle_counter > 32) begin
+                            idle_cycle_counter <= 0;
+
+                            mdio_writer_state <= MDIO_WRITER_STATE_START1;
+                        end
+                    end
+
+                    // START CONDITION
+                    MDIO_WRITER_STATE_START1: begin
+                        mdio_t <= 1'b0;
+                        mdio_o <= 1'b0;
+                    end
+
+                    MDIO_WRITER_STATE_START0: begin
+                        mdio_o <= 1'b1;
+                    end
+
+                    // OPCODE
+                    MDIO_WRITER_STATE_OPCODE1: begin
+                        mdio_o <= 1'b0;
+                    end
+
+                    MDIO_WRITER_STATE_OPCODE0: begin
+                        mdio_o <= 1'b1;
+                    end
+
+                    // PHY ADDRESS
+                    MDIO_WRITER_STATE_PHY_ADDR4: begin
+                        mdio_o <= phy_address[4];
+                    end
+
+                    MDIO_WRITER_STATE_PHY_ADDR3: begin
+                        mdio_o <= phy_address[3];
+                    end
+
+                    MDIO_WRITER_STATE_PHY_ADDR2: begin
+                        mdio_o <= phy_address[2];
+                    end
+
+                    MDIO_WRITER_STATE_PHY_ADDR1: begin
+                        mdio_o <= phy_address[1];
+                    end
+
+                    MDIO_WRITER_STATE_PHY_ADDR0: begin
+                        mdio_o <= phy_address[0];
+                    end
+
+
+                    // REGISTER ADDRESS
+                    MDIO_WRITER_STATE_REG_ADDR4: begin
+                    end
+                    MDIO_WRITER_STATE_REG_ADDR3: begin
+                    end
+                    MDIO_WRITER_STATE_REG_ADDR2: begin
+                    end
+                    MDIO_WRITER_STATE_REG_ADDR1: begin
+                    end
+                    MDIO_WRITER_STATE_REG_ADDR0: begin
+                    end
+
+                    // TURNAROUND BITS
+                    MDIO_WRITER_STATE_TA1: begin
+                    end
+                    MDIO_WRITER_STATE_TA0: begin
+                    end
+
+                    // REGISTER INPUT DATA
+                    MDIO_WRITER_STATE_DATA15: begin
+                    end
+                    MDIO_WRITER_STATE_DATA14: begin
+                    end
+                    MDIO_WRITER_STATE_DATA13: begin
+                    end
+                    MDIO_WRITER_STATE_DATA12: begin
+                    end
+                    MDIO_WRITER_STATE_DATA11: begin
+                    end
+                    MDIO_WRITER_STATE_DATA10: begin
+                    end
+                    MDIO_WRITER_STATE_DATA9: begin
+                    end
+                    MDIO_WRITER_STATE_DATA8: begin
+                    end
+                    MDIO_WRITER_STATE_DATA7: begin
+                    end
+                    MDIO_WRITER_STATE_DATA6: begin
+                    end
+                    MDIO_WRITER_STATE_DATA5: begin
+                    end
+                    MDIO_WRITER_STATE_DATA4: begin
+                    end
+                    MDIO_WRITER_STATE_DATA3: begin
+                    end
+                    MDIO_WRITER_STATE_DATA2: begin
+                    end
+                    MDIO_WRITER_STATE_DATA1: begin
+                    end
+                    MDIO_WRITER_STATE_DATA0: begin
+                    end
+
+                    default: begin
+                        mdio_writer_state <= MDIO_WRITER_STATE_INIT;
+                    end
+                endcase
+            end
         end
     end
 
