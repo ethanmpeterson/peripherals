@@ -212,6 +212,7 @@ module mdio_master #(
 
                         mdio_master_state <= MDIO_MASTER_STATE_WAIT_FOR_WRITE_DATA;
                     end
+                    // mdio_master_state <= MDIO_MASTER_STATE_INIT;
                 end
 
                 MDIO_MASTER_STATE_WAIT_FOR_WRITE_DATA: begin
@@ -371,7 +372,7 @@ module mdio_master #(
                 MDIO_MASTER_STATE_END_TRANSACTION: begin
                     if (mdc_falling_edge) begin
                         // force a cycle in between transactions
-                        mdio_master_state <= MDIO_MASTER_STATE_PHY_SPECIFIC;
+                        mdio_master_state <= MDIO_MASTER_STATE_INIT;
                     end
                 end
 
