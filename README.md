@@ -1,2 +1,7 @@
-# rtl-project
-This repository is an SystemVerilog project template that provides an example VUnit test bench and GitHub Actions job.
+# Peripherals
+This repository is a collection of various helper modules and interfaces I have created for my personal FPGA projects.
+- SPI master
+- MDIO master
+- Ethernet UDP Transmitter
+- Ethernet UDP Receiver
+- UART
