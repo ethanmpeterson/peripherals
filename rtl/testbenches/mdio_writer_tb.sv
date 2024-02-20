@@ -27,8 +27,7 @@ module mdio_writer_tb;
 
 
     mdio_writer #(
-        .CLKS_PER_BIT(6),
-        .PHY_ADDRESS(PHY_ADDRESS)
+        .CLKS_PER_BIT(6)
     ) DUT (
         .clk(clk),
         .reset(0),

@@ -13,7 +13,7 @@ module mdio_writer #(
     output var logic mdio_o,
     output var logic mdio_t,
 
-    output var logic mdc
+    output var logic mdc = 0
 );
 
     typedef enum int {
@@ -73,7 +73,7 @@ module mdio_writer #(
 
     mdio_writer_state_t mdio_writer_state = MDIO_WRITER_STATE_INIT;
 
-    initial mdc = 0;
+    // initial mdc = 0;
     always_ff @(posedge clk) begin
         if (cycle_counter == CLKS_PER_BIT) begin
             // reset the counter
@@ -113,7 +113,7 @@ module mdio_writer #(
                     MDIO_WRITER_STATE_INIT: begin
                         // Assign test write data to shut off both LEDs on the eth port
                         phy_address <= 5'b00001;
-                        write_data <= 16'b0000000000_11_0_00_0;
+                        write_data <= 16'b0000000000_11_0_10_0;
                         register_address <= 5'h18;
 
                         idle_cycle_counter <= 0;

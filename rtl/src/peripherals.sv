@@ -135,17 +135,121 @@ module peripherals (
         .WRITE_DATA_WIDTH(16)
     ) mdio_axil ();
 
-    mdio_writer #(
-        .CLKS_PER_BIT(125)
-    ) mdio_writer_inst (
+    mdio_master #(
+        .CLKS_PER_BIT(125),
+        .PHY_ADDRESS(5'b00001)
+    ) mdio_master_inst (
         .clk(udp_sys_clk),
         .reset(0),
 
-        .mdio_o(mdio_o),
         .mdio_i(mdio_i),
+        .mdio_o(mdio_o),
         .mdio_t(mdio_t),
-        .mdc(eth_mdc)
+
+        .mdc(eth_mdc),
+
+        .axi_lite(mdio_axil.Slave)
     );
+
+    var logic [15:0] link_led_on_value = 16'b0000000000_11_0_10_0;
+    var logic [15:0] link_led_off_value = 16'b0000000000_11_0_11_0;
+    typedef enum int {
+        INIT,
+        WRITE_LED_ON,
+        WAIT,
+        WRITE_LED_OFF
+    } mdio_blinky_state_t;
+    mdio_blinky_state_t blinky_state = WRITE_LED_ON;
+    var logic [63:0] blinky_wait_counter = 0;
+    var logic        in_waiting = 0;
+    var logic        on_next = 0;
+    always_ff @(posedge udp_sys_clk) begin
+        case (blinky_state)
+            INIT: begin
+                mdio_axil.awaddr <= 0;
+                mdio_axil.awprot <= 0; // module does not care about this signal
+                mdio_axil.awvalid <= 1'b0;
+
+                mdio_axil.wdata <= 0;
+                mdio_axil.wstrb <= 0;
+                mdio_axil.wvalid <= 0;
+
+                mdio_axil.bready <= 1'b0;
+
+                mdio_axil.araddr <= 0;
+                mdio_axil.arprot <= 0;
+                mdio_axil.arvalid <= 0;
+
+                mdio_axil.rready <= 0;
+
+                blinky_state <= WRITE_LED_ON;
+            end
+
+            WRITE_LED_ON: begin
+                mdio_axil.awaddr <= 5'h18;
+                mdio_axil.awvalid <= 1'b1;
+                if (mdio_axil.awready && mdio_axil.awvalid) begin
+                    // finish writing the address and proceed to wait for the register's data
+                    mdio_axil.awvalid <= 1'b0;
+                end
+
+                mdio_axil.wdata <= link_led_on_value;
+                mdio_axil.wvalid <= 1'b1;
+                mdio_axil.bready <= 1'b0;
+
+                blinky_state <= WAIT;
+            end
+
+            WAIT: begin
+                led[0] <= 1;
+                blinky_wait_counter <= blinky_wait_counter + 1;
+                if (blinky_wait_counter == 16_000_000) begin
+                    blinky_wait_counter <= 0;
+
+                    mdio_axil.bready <= 1'b1;
+
+                    led[0] <= 0;
+                    mdio_axil.wvalid <= 1'b0;
+
+                    // Turn LED off after 1s has elapsed
+                    if (on_next) begin
+                        on_next <= 1'b0;
+                        blinky_state <= WRITE_LED_ON;
+                    end else begin
+                        blinky_state <= WRITE_LED_OFF;
+                    end
+                end
+            end
+
+            WRITE_LED_OFF: begin
+                mdio_axil.awaddr <= 5'h18;
+                mdio_axil.awvalid <= 1'b1;
+                if (mdio_axil.awready && mdio_axil.awvalid) begin
+                    // finish writing the address and proceed to wait for the register's data
+                    mdio_axil.awvalid <= 1'b0;
+                end
+
+                mdio_axil.wdata <= link_led_off_value;
+                mdio_axil.wvalid <= 1'b1;
+                mdio_axil.bready <= 1'b0;
+
+                on_next <= 1'b1;
+                blinky_state <= WAIT;
+            end
+        endcase
+    end
+
+    // mdio_writer #(
+    //     .CLKS_PER_BIT(125)
+    // ) mdio_writer_inst (
+    //     .clk(udp_sys_clk),
+    //     .reset(0),
+
+    //     .mdio_o(mdio_o),
+    //     .mdio_i(mdio_i),
+    //     .mdio_t(mdio_t),
+    //     .mdc(eth_mdc)
+    // );
 
     // mdio_master_ip
     //     mdio_master_ip_inst (
@@ -154,7 +258,7 @@ module peripherals (
 
     //         .cmd_phy_addr(5'b00001),
     //         .cmd_reg_addr(5'h18),
-    //         .cmd_data(16'b0000000000_11_0_11_0),
+    //         .cmd_data(16'b0000000000_11_0_10_0),
     //         .cmd_opcode(2'b01),
     //         .cmd_valid(1),
     //         .cmd_ready(),
@@ -180,8 +284,8 @@ module peripherals (
 
 	    .probe0(eth_mdc), // input wire [0:0]  probe0
 	    .probe1(mdio_o), // input wire [0:0]  probe1
-	    .probe2(mdio_t), // input wire [0:0]  probe2
-	    .probe3(eth_mdio) // input wire [0:0]  probe3
+	    .probe2(mdio_axil.wready), // input wire [0:0]  probe2
+	    .probe3(in_waiting) // input wire [0:0]  probe3
     );
 
     // AXI between MAC and Ethernet modules
