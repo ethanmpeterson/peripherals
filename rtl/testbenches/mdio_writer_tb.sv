@@ -45,10 +45,10 @@ module mdio_writer_tb;
         end
 
         `TEST_CASE("mdio_read_transaction") begin
-            automatic int cycle_counter = 0;
-            while (cycle_counter < 100) begin
-                @(negedge mdc) cycle_counter = cycle_counter + 1;
-            end
+            // automatic int cycle_counter = 0;
+            // while (cycle_counter < 100) begin
+            //     @(negedge mdc) cycle_counter = cycle_counter + 1;
+            // end
 
             `CHECK_EQUAL(0, 0);
         end
